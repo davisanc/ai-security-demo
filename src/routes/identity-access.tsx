@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Bot, ChevronLeft, ChevronRight, GitBranch, Shield, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AnimatedList } from '@/components/ui/animated-list'
+import { AnimatedTwoPane } from '@/components/AnimatedTwoPane'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/identity-access')({
@@ -226,6 +227,7 @@ function IdentityAccessPage() {
   const [currentStage, setCurrentStage] = useState(0)
   const [currentScreenshot, setCurrentScreenshot] = useState(0)
   const [notifications, setNotifications] = useState<Array<AgentNotification>>([])
+  const [paneState, setPaneState] = useState<'both' | 'left' | 'right'>('left')
 
 
   useEffect(() => {
@@ -284,43 +286,8 @@ function IdentityAccessPage() {
     setCurrentScreenshot((prev) => (prev - 1 + screenshots.length) % screenshots.length)
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <div className="container mx-auto px-6 py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <a
-            href="/"
-            className="inline-flex items-center text-cyan-400 hover:text-cyan-300 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </a>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 p-2.5 flex items-center justify-center">
-              <Users className="w-full h-full text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">Identity and Access</h1>
-              <p className="text-gray-400">
-                AI Agent Lifecycle Management and Governance
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Pane - Lifecycle Visualization */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden"
-          >
+  const leftPane = (
+    <div className="flex flex-col h-full">
             <div className="bg-slate-900/50 border-b border-slate-700 p-4">
               <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                 <GitBranch className="w-5 h-5" />
@@ -469,14 +436,11 @@ function IdentityAccessPage() {
                 </p>
               </div>
             </div>
-          </motion.div>
+    </div>
+  )
 
-          {/* Right Pane - Entra Agent ID Screenshots */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden"
-          >
+  const rightPane = (
+    <div className="flex flex-col h-full">
             <div className="bg-slate-900/50 border-b border-slate-700 p-4">
               <h2 className="text-xl font-semibold text-white">
                 Microsoft Entra Agent ID
@@ -589,8 +553,45 @@ function IdentityAccessPage() {
                 </ul>
               </div>
             </div>
-          </motion.div>
-        </div>
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className="container mx-auto px-6 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <a
+            href="/"
+            className="inline-flex items-center text-cyan-400 hover:text-cyan-300 mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </a>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 p-2.5 flex items-center justify-center">
+              <Users className="w-full h-full text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-white">Identity and Access</h1>
+              <p className="text-gray-400">
+                AI Agent Lifecycle Management and Governance
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <AnimatedTwoPane
+          leftPane={leftPane}
+          rightPane={rightPane}
+          paneState={paneState}
+          onLeftExpand={() => setPaneState('left')}
+          onRightExpand={() => setPaneState('right')}
+          onShowBoth={() => setPaneState('both')}
+        />
       </div>
     </div>
   )

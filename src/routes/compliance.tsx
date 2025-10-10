@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ChevronLeft, ChevronRight, FileCheck, Scale } from 'lucide-react'
 import { useState } from 'react'
+import { AnimatedTwoPane } from '@/components/AnimatedTwoPane'
 
 export const Route = createFileRoute('/compliance')({
   component: CompliancePage,
@@ -162,44 +163,44 @@ interface Screenshot {
 function CompliancePage() {
   const [selectedRegulation, setSelectedRegulation] = useState(0)
   const [currentScreenshot, setCurrentScreenshot] = useState(0)
+  const [paneState, setPaneState] = useState<'both' | 'left' | 'right'>('left')
 
-  // CUSTOMIZATION POINT: Add your Purview for AI Compliance Manager screenshot URLs here
   const screenshots: Array<Screenshot> = [
     {
       id: 'dashboard',
       title: 'Compliance Dashboard',
       description: 'Overview of compliance status across regulations',
-      url: '', // Add your screenshot URL
+      url: '',
     },
     {
       id: 'risk-assessment',
       title: 'AI Risk Assessment',
       description: 'Risk classification and assessment tools',
-      url: '', // Add your screenshot URL
+      url: '',
     },
     {
       id: 'controls',
       title: 'Control Implementation',
       description: 'Tracking implementation of required controls',
-      url: '', // Add your screenshot URL
+      url: '',
     },
     {
       id: 'documentation',
       title: 'Documentation Management',
       description: 'Technical documentation and compliance records',
-      url: '', // Add your screenshot URL
+      url: '',
     },
     {
       id: 'audit',
       title: 'Audit and Reporting',
       description: 'Compliance reports and audit trails',
-      url: '', // Add your screenshot URL
+      url: '',
     },
     {
       id: 'monitoring',
       title: 'Continuous Monitoring',
       description: 'Real-time compliance monitoring and alerts',
-      url: '', // Add your screenshot URL
+      url: '',
     },
   ]
 
@@ -211,10 +212,203 @@ function CompliancePage() {
     setCurrentScreenshot((prev) => (prev - 1 + screenshots.length) % screenshots.length)
   }
 
+  const leftPane = (
+    <div className="flex flex-col h-full">
+      <div className="bg-slate-900/50 border-b border-slate-700 p-4">
+        <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+          <Scale className="w-5 h-5" />
+          AI Regulations & Requirements
+        </h2>
+        <p className="text-sm text-gray-400 mt-1">Key compliance frameworks for AI systems</p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex gap-2 mb-6">
+          {regulations.map((reg, idx) => (
+            <button
+              key={reg.id}
+              onClick={() => setSelectedRegulation(idx)}
+              className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
+                selectedRegulation === idx
+                  ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
+                  : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+              }`}
+            >
+              {reg.shortName}
+            </button>
+          ))}
+        </div>
+
+        <motion.div
+          key={selectedRegulation}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          <div className="bg-slate-900/50 rounded-lg p-4">
+            <h3 className="text-xl font-bold text-white mb-2">
+              {regulations[selectedRegulation].name}
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              {regulations[selectedRegulation].description}
+            </p>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <p className="text-xs font-semibold text-green-400 mb-1">Scope</p>
+              <p className="text-xs text-gray-400">{regulations[selectedRegulation].scope}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white">Key Compliance Requirements</h4>
+            {regulations[selectedRegulation].keyRequirements.map((req, idx) => (
+              <div key={idx} className="bg-slate-900/50 rounded-lg p-4">
+                <h5 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-600 text-white text-xs">
+                    {idx + 1}
+                  </span>
+                  {req.title}
+                </h5>
+                <p className="text-xs text-gray-400 mb-3 ml-8">{req.description}</p>
+                <ul className="space-y-1.5 ml-8">
+                  {req.controls.map((control, cidx) => (
+                    <li key={cidx} className="text-xs text-gray-400 flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
+                      <span>{control}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-lg p-4">
+            <h5 className="text-sm font-semibold text-green-400 mb-2">Implementation Steps</h5>
+            <ul className="space-y-2">
+              {[
+                'Assess AI system risk classification',
+                'Document technical specifications',
+                'Implement required controls',
+                'Establish monitoring procedures',
+                'Prepare for audits and assessments',
+              ].map((step, idx) => (
+                <li key={idx} className="text-xs text-gray-300 flex items-center gap-2">
+                  <FileCheck className="w-3 h-3 text-green-400 flex-shrink-0" />
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  )
+
+  const rightPane = (
+    <div className="flex flex-col h-full">
+      <div className="bg-slate-900/50 border-b border-slate-700 p-4">
+        <h2 className="text-xl font-semibold text-white">
+          Microsoft Purview for AI - Compliance Manager
+        </h2>
+        <p className="text-sm text-gray-400 mt-1">Compliance management and reporting tools</p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-300">
+            {currentScreenshot + 1} / {screenshots.length}
+          </h3>
+          <div className="flex gap-2">
+            <button
+              onClick={prevScreenshot}
+              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4 text-white" />
+            </button>
+            <button
+              onClick={nextScreenshot}
+              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+            >
+              <ChevronRight className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </div>
+
+        <motion.div
+          key={currentScreenshot}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="mb-4"
+        >
+          <div className="bg-slate-900/50 rounded-lg p-4 mb-3">
+            <h4 className="text-lg font-semibold text-white mb-2">
+              {screenshots[currentScreenshot].title}
+            </h4>
+            <p className="text-sm text-gray-400">{screenshots[currentScreenshot].description}</p>
+          </div>
+
+          <div className="bg-slate-900 rounded-lg p-4 min-h-[500px] flex items-center justify-center">
+            {screenshots[currentScreenshot].url ? (
+              <img
+                src={screenshots[currentScreenshot].url}
+                alt={screenshots[currentScreenshot].title}
+                className="max-w-full max-h-[500px] object-contain rounded cursor-pointer hover:scale-105 transition-transform"
+                onClick={nextScreenshot}
+              />
+            ) : (
+              <div className="text-center text-gray-500">
+                <FileCheck className="w-20 h-20 mx-auto mb-4 opacity-50" />
+                <p className="text-sm mb-2">Screenshot placeholder - Add URL in code</p>
+                <p className="text-xs text-gray-600">
+                  Update the screenshot URL in the screenshots array
+                </p>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        <div className="flex justify-center gap-2 mb-6">
+          {screenshots.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentScreenshot(idx)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                idx === currentScreenshot ? 'bg-green-500' : 'bg-slate-600 hover:bg-slate-500'
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="bg-slate-900/50 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-white mb-3">
+            Purview Compliance Manager Features
+          </h4>
+          <ul className="space-y-2">
+            {[
+              'Multi-regulation compliance tracking',
+              'Automated control assessments',
+              'Risk scoring and prioritization',
+              'Evidence collection and management',
+              'Compliance score calculation',
+              'Regulatory change notifications',
+              'Remediation workflow management',
+              'Audit-ready documentation',
+            ].map((feature, idx) => (
+              <li key={idx} className="text-xs text-gray-400 flex items-center gap-2">
+                <FileCheck className="w-3 h-3 text-green-400 flex-shrink-0" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="container mx-auto px-6 py-8">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -233,248 +427,19 @@ function CompliancePage() {
             </div>
             <div>
               <h1 className="text-4xl font-bold text-white">Compliance</h1>
-              <p className="text-gray-400">
-                Global AI regulations and compliance frameworks
-              </p>
+              <p className="text-gray-400">Global AI regulations and compliance frameworks</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Pane - Regulations */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden"
-          >
-            <div className="bg-slate-900/50 border-b border-slate-700 p-4">
-              <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                <Scale className="w-5 h-5" />
-                AI Regulations & Requirements
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Key compliance frameworks for AI systems
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Regulation Selector */}
-              <div className="flex gap-2 mb-6">
-                {regulations.map((reg, idx) => (
-                  <button
-                    key={reg.id}
-                    onClick={() => setSelectedRegulation(idx)}
-                    className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
-                      selectedRegulation === idx
-                        ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
-                        : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
-                    }`}
-                  >
-                    {reg.shortName}
-                  </button>
-                ))}
-              </div>
-
-              {/* Regulation Details */}
-              <motion.div
-                key={selectedRegulation}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6"
-              >
-                {/* Overview */}
-                <div className="bg-slate-900/50 rounded-lg p-4">
-                  <h3 className="text-xl font-bold text-white mb-2">
-                    {regulations[selectedRegulation].name}
-                  </h3>
-                  <p className="text-sm text-gray-400 mb-4">
-                    {regulations[selectedRegulation].description}
-                  </p>
-                  <div className="bg-slate-800/50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-green-400 mb-1">Scope</p>
-                    <p className="text-xs text-gray-400">
-                      {regulations[selectedRegulation].scope}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Key Requirements */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white">
-                    Key Compliance Requirements
-                  </h4>
-                  {regulations[selectedRegulation].keyRequirements.map((req, idx) => (
-                    <div key={idx} className="bg-slate-900/50 rounded-lg p-4">
-                      <h5 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-600 text-white text-xs">
-                          {idx + 1}
-                        </span>
-                        {req.title}
-                      </h5>
-                      <p className="text-xs text-gray-400 mb-3 ml-8">{req.description}</p>
-                      <ul className="space-y-1.5 ml-8">
-                        {req.controls.map((control, cidx) => (
-                          <li
-                            key={cidx}
-                            className="text-xs text-gray-400 flex items-start gap-2"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
-                            <span>{control}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Compliance Actions */}
-                <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-lg p-4">
-                  <h5 className="text-sm font-semibold text-green-400 mb-2">
-                    Implementation Steps
-                  </h5>
-                  <ul className="space-y-2">
-                    {[
-                      'Assess AI system risk classification',
-                      'Document technical specifications',
-                      'Implement required controls',
-                      'Establish monitoring procedures',
-                      'Prepare for audits and assessments',
-                    ].map((step, idx) => (
-                      <li key={idx} className="text-xs text-gray-300 flex items-center gap-2">
-                        <FileCheck className="w-3 h-3 text-green-400 flex-shrink-0" />
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
-
-          {/* Right Pane - Purview Screenshots */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden"
-          >
-            <div className="bg-slate-900/50 border-b border-slate-700 p-4">
-              <h2 className="text-xl font-semibold text-white">
-                Microsoft Purview for AI - Compliance Manager
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Compliance management and reporting tools
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Screenshot Navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-300">
-                  {currentScreenshot + 1} / {screenshots.length}
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={prevScreenshot}
-                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                    aria-label="Previous screenshot"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-white" />
-                  </button>
-                  <button
-                    onClick={nextScreenshot}
-                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                    aria-label="Next screenshot"
-                  >
-                    <ChevronRight className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Screenshot Display */}
-              <motion.div
-                key={currentScreenshot}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="mb-4"
-              >
-                <div className="bg-slate-900/50 rounded-lg p-4 mb-3">
-                  <h4 className="text-lg font-semibold text-white mb-2">
-                    {screenshots[currentScreenshot].title}
-                  </h4>
-                  <p className="text-sm text-gray-400">
-                    {screenshots[currentScreenshot].description}
-                  </p>
-                </div>
-
-                <div className="bg-slate-900 rounded-lg p-4 min-h-[500px] flex items-center justify-center">
-                  {screenshots[currentScreenshot].url ? (
-                    <img
-                      src={screenshots[currentScreenshot].url}
-                      alt={screenshots[currentScreenshot].title}
-                      className="max-w-full max-h-[500px] object-contain rounded cursor-pointer hover:scale-105 transition-transform"
-                      onClick={nextScreenshot}
-                    />
-                  ) : (
-                    <div className="text-center text-gray-500">
-                      <FileCheck className="w-20 h-20 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm mb-2">
-                        {/* CUSTOMIZATION POINT: Add screenshot URLs */}
-                        Screenshot placeholder - Add URL in code
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        Update the screenshot URL in the screenshots array
-                      </p>
-                      <p className="text-xs text-gray-600 mt-2">
-                        Click arrows to navigate through presentation slides
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-
-              {/* Screenshot Dots */}
-              <div className="flex justify-center gap-2 mb-6">
-                {screenshots.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentScreenshot(idx)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      idx === currentScreenshot ? 'bg-green-500' : 'bg-slate-600 hover:bg-slate-500'
-                    }`}
-                    aria-label={`Go to screenshot ${idx + 1}`}
-                  />
-                ))}
-              </div>
-
-              {/* Purview Features */}
-              <div className="bg-slate-900/50 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-white mb-3">
-                  Purview Compliance Manager Features
-                </h4>
-                <ul className="space-y-2">
-                  {[
-                    'Multi-regulation compliance tracking',
-                    'Automated control assessments',
-                    'Risk scoring and prioritization',
-                    'Evidence collection and management',
-                    'Compliance score calculation',
-                    'Regulatory change notifications',
-                    'Remediation workflow management',
-                    'Audit-ready documentation',
-                  ].map((feature, idx) => (
-                    <li key={idx} className="text-xs text-gray-400 flex items-center gap-2">
-                      <FileCheck className="w-3 h-3 text-green-400 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+        <AnimatedTwoPane
+          leftPane={leftPane}
+          rightPane={rightPane}
+          paneState={paneState}
+          onLeftExpand={() => setPaneState('left')}
+          onRightExpand={() => setPaneState('right')}
+          onShowBoth={() => setPaneState('both')}
+        />
       </div>
     </div>
   )

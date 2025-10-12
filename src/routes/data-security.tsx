@@ -1,9 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
-import { AlertTriangle, ArrowLeft, Database, Send, Shield } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Database, Send, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { AnimatedTwoPane } from '@/components/AnimatedTwoPane'
 import { generateFallbackResponse, isAPIConfigured } from '@/lib/api'
+import { sendChatMessage } from '@/lib/chat-server'
+import { 
+  detectContentSafetyError, 
+  formatContentSafetyMessage,
+  type ContentSafetyError 
+} from '@/lib/content-safety'
 
 export const Route = createFileRoute('/data-security')({
   component: DataSecurityPage,
@@ -35,41 +41,19 @@ const threatExamples: ThreatExample[] = [
     description: 'Uploading files with confidentiality labels to AI systems',
     severity: 'high',
     examplePrompt: 'Upload Q4_Financial_Report_CONFIDENTIAL.pdf and analyze the data',
-    explanation: `When users upload documents with confidentiality labels (Confidential, Highly Confidential, Internal Only) to AI systems, there's a risk of data leakage if proper controls aren't enforced.
+    explanation: `When users upload documents with confidentiality labels to AI systems, there's a risk of data leakage if proper controls aren't enforced.
 
-**Risk Scenarios:**
-• Confidential documents processed without authorization checks
-• Sensitive labels ignored by AI processing pipeline
-• Cross-contamination between different classification levels
+**Key Risks:**
+• Confidential documents processed without authorization
+• Sensitive labels ignored by AI processing
+• Cross-contamination between classification levels
 • Unauthorized distribution of classified information
-• Retention policy violations
 
-**Data Classification Examples:**
-- Public: Marketing materials, press releases
-- Internal: Company policies, org charts
-- Confidential: Financial reports, customer contracts
-- Highly Confidential: Trade secrets, M&A documents
-- Restricted: GDPR/HIPAA protected data
-
-**Protection Mechanisms:**
-- Document classification enforcement
-- Label-aware access controls
-- Content inspection and filtering
-- Encryption for data at rest and in transit
-- Audit logging of sensitive file access
-
-**Microsoft Purview for AI** provides:
-1. Automatic sensitivity label detection
-2. Policy enforcement based on classification
-3. Blocking or redacting sensitive content
-4. Compliance reporting and auditing
-5. Integration with Microsoft Information Protection
-
-**Microsoft Defender for AI** adds:
-- Real-time threat detection on file uploads
-- Malware and content scanning
-- Behavioral analysis of file processing
-- Alert generation for policy violations`,
+**Microsoft Purview for AI Protection:**
+• Automatic sensitivity label detection
+• Policy enforcement based on classification
+• Blocking or redacting sensitive content
+• Compliance reporting and auditing`,
     defenderScreenshotUrl: '',
     purviewScreenshotUrl: '',
   },
@@ -78,44 +62,20 @@ const threatExamples: ThreatExample[] = [
     title: 'PII Data Entry',
     description: 'Entering personally identifiable information into AI prompts',
     severity: 'high',
-    examplePrompt: 'Analyze this customer record: John Smith, SSN: 123-45-6789, DOB: 01/15/1980, Address: 123 Main St',
-    explanation: `Users may inadvertently or intentionally enter PII into AI systems, creating data leakage risks and compliance violations under GDPR, CCPA, and other privacy regulations.
+    examplePrompt: 'Analyze this customer record: John Smith, SSN: 123-45-6789, DOB: 01/15/1980',
+    explanation: `Users may inadvertently enter PII into AI systems, creating data leakage risks and compliance violations under GDPR, CCPA, and other privacy regulations.
 
 **Types of PII at Risk:**
 • Social Security Numbers (SSN)
 • Credit card numbers and financial data
-• Dates of birth
-• Home addresses and contact information
-• Driver's license numbers
-• Passport numbers
+• Dates of birth and addresses
 • Health information (PHI)
-• Biometric data
 
-**Compliance Requirements:**
-- GDPR: Right to erasure, data minimization
-- CCPA: Consumer privacy rights
-- HIPAA: PHI protection requirements
-- PCI-DSS: Payment card data security
-
-**Detection Methods:**
-- Pattern matching (SSN: XXX-XX-XXXX)
-- Named entity recognition (NER)
-- Regular expressions for common formats
-- Machine learning-based PII detection
-- Context-aware analysis
-
-**Microsoft Purview for AI** capabilities:
-1. Real-time PII detection in prompts
-2. Automatic redaction or masking
-3. Policy-based blocking of sensitive inputs
-4. Data subject request (DSR) support
-5. Privacy impact assessments
-
-**Microsoft Defender for AI** monitors:
-- Anomalous patterns of PII submission
-- Bulk PII extraction attempts
-- Unauthorized access to PII-containing data
-- Compliance policy violations`,
+**Microsoft Purview Capabilities:**
+• Real-time PII detection in prompts
+• Automatic redaction or masking
+• Policy-based blocking of sensitive inputs
+• Data subject request (DSR) support`,
     defenderScreenshotUrl: '',
     purviewScreenshotUrl: '',
   },
@@ -125,45 +85,19 @@ const threatExamples: ThreatExample[] = [
     description: 'Including confidential business data or credentials in AI prompts',
     severity: 'high',
     examplePrompt: 'Help me write SQL: SELECT * FROM customers WHERE api_key = "sk-prod-abc123xyz"',
-    explanation: `Users often include sensitive business information, credentials, or proprietary data directly in prompts without realizing the security implications.
+    explanation: `Users often include sensitive business information or credentials directly in prompts without realizing the security implications.
 
-**Common Sensitive Data Types:**
+**Common Sensitive Data:**
 • API keys and access tokens
-• Database credentials and connection strings
+• Database credentials
 • Proprietary algorithms or code
 • Business strategies and forecasts
-• Customer lists and contact information
-• Pricing information and margins
-• Legal or contractual terms
-• Internal system architecture details
 
-**Leakage Vectors:**
-- Prompt logging and retention
-- Model training data contamination
-- Shared conversation history
-- Third-party AI service exposure
-- Insider threats
-- Accidental disclosure in outputs
-
-**Prevention Strategies:**
-- Credential scanning and detection
-- Prompt sanitization and filtering
-- User education and awareness training
-- Clear usage policies and guidelines
-- Secrets management integration
-
-**Microsoft Defender for AI** protects by:
-1. Scanning prompts for credential patterns
-2. Blocking known secret formats (API keys, tokens)
-3. Integrating with Azure Key Vault detection
-4. Alerting on sensitive data exposure
-5. Providing remediation guidance
-
-**Microsoft Purview for AI** adds:
-- Classification of business-critical information
-- Policy enforcement for proprietary data
-- Audit trails for sensitive data access
-- Compliance reporting`,
+**Microsoft Defender Protection:**
+• Scanning prompts for credential patterns
+• Blocking known secret formats
+• Integration with Azure Key Vault detection
+• Alerting on sensitive data exposure`,
     defenderScreenshotUrl: '',
     purviewScreenshotUrl: '',
   },
@@ -181,7 +115,8 @@ function DataSecurityPage() {
   ])
   const [inputValue, setInputValue] = useState('')
   const [selectedThreat, setSelectedThreat] = useState<ThreatExample | null>(null)
-  const [currentScreenshot, setCurrentScreenshot] = useState(0)
+  const [contentSafetyError, setContentSafetyError] = useState<ContentSafetyError | null>(null)
+  const [currentSlide, setCurrentSlide] = useState(0)
   const [paneState, setPaneState] = useState<'both' | 'left' | 'right'>('left')
 
   const handleSendMessage = async () => {
@@ -195,27 +130,48 @@ function DataSecurityPage() {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const currentInput = inputValue
     setInputValue('')
 
-    // Find matching threat example
     const matchedThreat = threatExamples.find((threat) =>
-      inputValue.toLowerCase().includes(threat.examplePrompt.toLowerCase().substring(0, 20))
+      currentInput.toLowerCase().includes(threat.examplePrompt.toLowerCase().substring(0, 20))
     )
 
     if (matchedThreat) {
       setSelectedThreat(matchedThreat)
-      setCurrentScreenshot(0)
-      setPaneState('both') // Show both panes when threat is selected
+      setContentSafetyError(null)
+      setCurrentSlide(0)
+      setPaneState('both')
     }
 
-    // Use fallback response if API not configured
-    setTimeout(() => {
+    try {
       let responseContent: string
-      
-      if (matchedThreat) {
-        // Demonstrate the PROBLEM by responding inappropriately (showing what happens WITHOUT security)
-        if (matchedThreat.id === 'confidential-file-upload') {
-          responseContent = `I've analyzed the Q4 Financial Report. Here's what I found:
+
+      if (isAPIConfigured()) {
+        const systemPrompt = matchedThreat
+          ? `You are demonstrating a VULNERABLE AI system WITHOUT security controls. Your role is to show what happens when an AI system LACKS proper security measures by responding inappropriately to the user's request.
+
+Context: This is for ${matchedThreat.title} - ${matchedThreat.description}
+
+Important: Process the user's request as if you were an UNPROTECTED system. Show the data leakage or security issue that would occur. Then end with: "⚠️ *This response demonstrates ${matchedThreat.title.toLowerCase()} - check the threat analysis panel to understand the security implications!*"`
+          : 'You are a helpful security assistant analyzing potential AI security threats. Provide educational information about data security concerns.'
+
+        const result = await sendChatMessage({
+          data: {
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: currentInput },
+            ],
+            temperature: 0.7,
+            maxTokens: 800,
+          },
+        })
+
+        responseContent = result.choices[0].message.content
+      } else {
+        if (matchedThreat) {
+          if (matchedThreat.id === 'confidential-file-upload') {
+            responseContent = `I've analyzed the Q4 Financial Report. Here's what I found:
 
 **Revenue Summary:**
 - Q4 Revenue: $47.3M (up 23% YoY)
@@ -225,13 +181,7 @@ function DataSecurityPage() {
 **Confidential Strategic Initiatives:**
 - Planned acquisition of CompetitorX for $85M
 - New product launch scheduled March 2024
-- Layoff plan: 12% workforce reduction in Engineering
-
-**Executive Compensation:**
-- CEO bonus: $2.1M based on revenue targets
-- CFO equity grant: 50,000 shares
-
-This information shows strong growth but some concerning trends in customer concentration...
+- Layoff plan: 12% workforce reduction
 
 ⚠️ *This response demonstrates data leakage - check the threat analysis panel to see what went wrong!*`
         } else if (matchedThreat.id === 'pii-entry') {
@@ -241,19 +191,12 @@ This information shows strong growth but some concerning trends in customer conc
 - Full Name: John Smith
 - SSN: 123-45-6789
 - Date of Birth: January 15, 1980 (Age: 44)
-- Address: 123 Main Street, Springfield, IL 62701
-- Phone: (555) 123-4567
-- Email: john.smith@email.com
 
 **Credit History:**
 - Credit Score: 720
 - Annual Income: $85,000
-- Current Loan Balance: $245,000
 
-**Account Activity:**
-Based on this information, I recommend offering a premium credit card with a $25,000 limit...
-
-⚠️ *This response exposes PII that should have been protected - see the analysis panel for details on why this is dangerous!*`
+⚠️ *This response exposes PII that should have been protected - see the analysis panel for details!*`
         } else if (matchedThreat.id === 'sensitive-prompt-injection') {
           responseContent = `Here's the SQL query you requested:
 
@@ -263,27 +206,18 @@ WHERE api_key = 'sk-prod-abc123xyz'
   AND status = 'active';
 \`\`\`
 
-This will retrieve all active customer records associated with that API key. The key you provided (sk-prod-abc123xyz) appears to be a production key with full database access.
-
-**Additional suggestions:**
-- You might want to add pagination with LIMIT/OFFSET
-- Consider adding an index on the api_key column for better performance
-- The key format suggests this is an OpenAI production key with billing access
-
-Would you like me to help you write more advanced queries using this credential?
+The key you provided (sk-prod-abc123xyz) appears to be a production key with full database access.
 
 ⚠️ *This response leaked your API credentials - check the threat panel to understand the security implications!*`
         } else {
           responseContent = `I've processed your request. However, this type of query may contain sensitive information that should be protected.
 
-See the threat analysis panel for more information about potential security risks.
-
 ⚠️ *This demonstrates an unprotected AI system - check the analysis to see what controls should be in place.*`
         }
-      } else {
-        // Use the standard fallback for non-matched prompts
-        const fallbackResponse = generateFallbackResponse(inputValue, 'data-security')
-        responseContent = fallbackResponse.content
+        } else {
+          const fallbackResponse = generateFallbackResponse(currentInput, 'data-security')
+          responseContent = fallbackResponse.content
+        }
       }
 
       const assistantMessage: Message = {
@@ -293,22 +227,72 @@ See the threat analysis panel for more information about potential security risk
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, assistantMessage])
-    }, 1000)
+    } catch (error) {
+      console.error('Error in chat:', error)
+      
+      const contentSafetyError = detectContentSafetyError(error)
+      
+      if (contentSafetyError) {
+        setContentSafetyError(contentSafetyError)
+        setSelectedThreat(null)
+        setPaneState('both')
+        
+        const blockedMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: formatContentSafetyMessage(contentSafetyError),
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, blockedMessage])
+      } else {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'An error occurred while processing your request. Please try again.',
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, errorMessage])
+      }
+    }
   }
 
-  const screenshots = selectedThreat
+  const slides = selectedThreat
     ? [
-        selectedThreat.defenderScreenshotUrl
-          ? { title: 'Microsoft Defender for AI', url: selectedThreat.defenderScreenshotUrl }
-          : null,
-        selectedThreat.purviewScreenshotUrl
-          ? { title: 'Microsoft Purview for AI', url: selectedThreat.purviewScreenshotUrl }
-          : null,
-        selectedThreat.entraScreenshotUrl
-          ? { title: 'Microsoft Entra ID', url: selectedThreat.entraScreenshotUrl }
-          : null,
-      ].filter((s): s is { title: string; url: string } => s !== null)
+        {
+          title: selectedThreat.title,
+          content: selectedThreat.explanation,
+          imageUrl: selectedThreat.defenderScreenshotUrl || '',
+          imagePlaceholder: 'Microsoft Defender for AI',
+        },
+        {
+          title: 'Data Governance',
+          content: selectedThreat.explanation,
+          imageUrl: selectedThreat.purviewScreenshotUrl || '',
+          imagePlaceholder: 'Microsoft Purview for AI',
+        },
+      ]
     : []
+
+  const contentSafetySlides = contentSafetyError
+    ? [
+        {
+          title: contentSafetyError.title,
+          content: contentSafetyError.explanation,
+          imageUrl: '',
+          imagePlaceholder: 'Azure Content Safety',
+        },
+      ]
+    : []
+
+  const displaySlides = contentSafetyError ? contentSafetySlides : slides
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % displaySlides.length)
+  }
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + displaySlides.length) % displaySlides.length)
+  }
 
   const leftPane = (
     <div className="flex flex-col h-full">
@@ -322,7 +306,6 @@ See the threat analysis panel for more information about potential security risk
         </p>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
@@ -345,7 +328,6 @@ See the threat analysis panel for more information about potential security risk
         ))}
       </div>
 
-      {/* Example Prompts */}
       <div className="border-t border-slate-700 p-4 bg-slate-900/30">
         <p className="text-xs text-gray-400 mb-2">Try these examples:</p>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -360,7 +342,6 @@ See the threat analysis panel for more information about potential security risk
           ))}
         </div>
 
-        {/* Input */}
         <div className="flex gap-2">
           <input
             type="text"
@@ -380,7 +361,7 @@ See the threat analysis panel for more information about potential security risk
         {!isAPIConfigured() && (
           <p className="text-xs text-amber-400 mt-2 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
-            Demo mode: Configure Azure Foundry API for live responses
+            Demo mode: Configure Azure OpenAI API for live responses
           </p>
         )}
       </div>
@@ -391,111 +372,89 @@ See the threat analysis panel for more information about potential security risk
     <div className="flex flex-col h-full">
       <div className="bg-slate-900/50 border-b border-slate-700 p-4">
         <h2 className="text-xl font-semibold text-white">
-          Threat Analysis & Detection
+          {contentSafetyError ? 'Content Safety Analysis' : 'Threat Analysis & Protection'}
         </h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        {selectedThreat ? (
-          <div className="space-y-6">
-            {/* Threat Header */}
-            <div>
-              <div className="flex items-start gap-3 mb-3">
-                <AlertTriangle
-                  className={`w-6 h-6 ${
-                    selectedThreat.severity === 'high'
-                      ? 'text-red-500'
-                      : selectedThreat.severity === 'medium'
-                        ? 'text-orange-500'
-                        : 'text-yellow-500'
-                  }`}
-                />
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-1">
-                    {selectedThreat.title}
-                  </h3>
-                  <p className="text-gray-400">{selectedThreat.description}</p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    selectedThreat.severity === 'high'
-                      ? 'bg-red-500/20 text-red-400'
-                      : selectedThreat.severity === 'medium'
-                        ? 'bg-orange-500/20 text-orange-400'
-                        : 'bg-yellow-500/20 text-yellow-400'
-                  }`}
-                >
-                  {selectedThreat.severity.toUpperCase()}
+        {displaySlides.length > 0 ? (
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="h-full flex flex-col"
+          >
+            {/* Navigation Controls */}
+            {displaySlides.length > 1 && (
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm text-gray-400">
+                  Slide {currentSlide + 1} of {displaySlides.length}
                 </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={prevSlide}
+                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-white" />
+                  </button>
+                  <button
+                    onClick={nextSlide}
+                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Large Screenshot Section */}
+            <div className="mb-6">
+              <div className="bg-slate-900 rounded-lg overflow-hidden" style={{ height: '400px' }}>
+                {displaySlides[currentSlide].imageUrl ? (
+                  <img
+                    src={displaySlides[currentSlide].imageUrl}
+                    alt={displaySlides[currentSlide].title}
+                    className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                    onClick={nextSlide}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                    <div className="text-center text-gray-500">
+                      <Shield className="w-24 h-24 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg font-semibold">{displaySlides[currentSlide].imagePlaceholder}</p>
+                      <p className="text-sm mt-2">Add screenshot URL for presentation</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Explanation */}
-            <div className="bg-slate-900/50 rounded-lg p-4">
-              <h4 className="text-lg font-semibold text-white mb-3">
-                Detailed Explanation
-              </h4>
-              <div className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed">
-                {selectedThreat.explanation}
+            {/* Text Content Section */}
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold text-white mb-4">
+                {displaySlides[currentSlide].title}
+              </h3>
+              <div className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                {displaySlides[currentSlide].content}
               </div>
             </div>
 
-            {/* Screenshots Section */}
-            <div className="bg-slate-900/50 rounded-lg p-4">
-              <h4 className="text-lg font-semibold text-white mb-3">
-                Detection in Microsoft Security Tools
-              </h4>
-
-              {screenshots.length > 0 ? (
-                <div>
-                  {/* Screenshot Navigation */}
-                  <div className="flex gap-2 mb-4">
-                    {screenshots.map((screenshot, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentScreenshot(idx)}
-                        className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                          currentScreenshot === idx
-                            ? 'bg-cyan-600 text-white'
-                            : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
-                        }`}
-                      >
-                        {screenshot.title}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Screenshot Display */}
-                  <div className="bg-slate-800 rounded-lg p-4 min-h-[300px] flex items-center justify-center">
-                    {screenshots[currentScreenshot]?.url ? (
-                      <img
-                        src={screenshots[currentScreenshot].url}
-                        alt={screenshots[currentScreenshot].title}
-                        className="max-w-full max-h-[400px] object-contain rounded"
-                      />
-                    ) : (
-                      <div className="text-center text-gray-500">
-                        <Database className="w-16 h-16 mx-auto mb-3 opacity-50" />
-                        <p className="text-sm">
-                          Screenshot placeholder - Add URL in code
-                        </p>
-                        <p className="text-xs mt-2">
-                          Update the screenshot URL in the threat definition
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <Database className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">
-                    Add screenshot URLs to display detection examples
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+            {/* Slide Navigation Dots */}
+            {displaySlides.length > 1 && (
+              <div className="flex justify-center gap-2 mt-6">
+                {displaySlides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      idx === currentSlide ? 'bg-cyan-500 w-8' : 'bg-slate-600 hover:bg-slate-500'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
         ) : (
           <div className="h-full flex items-center justify-center text-gray-500">
             <div className="text-center">
@@ -514,7 +473,6 @@ See the threat analysis panel for more information about potential security risk
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="container mx-auto px-6 py-8">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -540,7 +498,6 @@ See the threat analysis panel for more information about potential security risk
           </div>
         </motion.div>
 
-        {/* Animated Two-Pane Layout */}
         <AnimatedTwoPane
           leftPane={leftPane}
           rightPane={rightPane}

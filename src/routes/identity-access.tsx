@@ -123,11 +123,11 @@ const lifecycleStages: Array<AgentLifecycleStage> = [
   },
 ]
 
-interface Screenshot {
-  id: string
+interface Slide {
   title: string
-  description: string
-  url: string
+  content: string
+  imageUrl: string
+  imagePlaceholder: string
 }
 
 interface AgentNotification {
@@ -225,48 +225,80 @@ const Notification = ({ name, description, icon, color, time }: AgentNotificatio
 
 function IdentityAccessPage() {
   const [currentStage, setCurrentStage] = useState(0)
-  const [currentScreenshot, setCurrentScreenshot] = useState(0)
+  const [currentSlide, setCurrentSlide] = useState(0)
   const [notifications, setNotifications] = useState<Array<AgentNotification>>([])
   const [paneState, setPaneState] = useState<'both' | 'left' | 'right'>('left')
 
-
   useEffect(() => {
-    // Generate initial notifications
     const initialNotifications = Array.from({ length: 10000 }, () => generateRandomNotification())
     setNotifications(initialNotifications)
   }, [])
 
-  // CUSTOMIZATION POINT: Add your Entra Agent ID screenshot URLs here
-  const screenshots: Array<Screenshot> = [
+  const slides: Array<Slide> = [
     {
-      id: 'overview',
       title: 'Agent Identity Dashboard',
-      description: 'Overview of all registered AI agents and their status',
-      url: '', // Add your screenshot URL
+      content: `Overview of all registered AI agents and their status.
+
+**Dashboard Features:**
+• Total agent count and status
+• Active vs. inactive agents
+• Risk level distribution
+• Recent activity timeline
+• Compliance status overview`,
+      imageUrl: '',
+      imagePlaceholder: 'Microsoft Entra Agent ID - Dashboard',
     },
     {
-      id: 'lifecycle',
       title: 'Lifecycle Management',
-      description: 'Visual representation of agent lifecycle stages',
-      url: '', // Add your screenshot URL
+      content: `Visual representation of agent lifecycle stages.
+
+**Lifecycle Tracking:**
+• Creation to decommissioning flow
+• Stage-specific controls
+• Automated workflows
+• Approval requirements
+• Audit trail maintenance`,
+      imageUrl: '',
+      imagePlaceholder: 'Lifecycle Management View',
     },
     {
-      id: 'permissions',
       title: 'Permission Management',
-      description: 'Granular permission controls for AI agents',
-      url: '', // Add your screenshot URL
+      content: `Granular permission controls for AI agents.
+
+**Permission Features:**
+• Role-based access control
+• Resource-level permissions
+• Just-in-time access
+• Permission inheritance
+• Access review workflows`,
+      imageUrl: '',
+      imagePlaceholder: 'Permission Management',
     },
     {
-      id: 'monitoring',
       title: 'Activity Monitoring',
-      description: 'Real-time monitoring of agent activities',
-      url: '', // Add your screenshot URL
+      content: `Real-time monitoring of agent activities.
+
+**Monitoring Capabilities:**
+• Real-time activity feed
+• Behavioral analytics
+• Anomaly detection
+• Security alerts
+• Performance metrics`,
+      imageUrl: '',
+      imagePlaceholder: 'Activity Monitoring Dashboard',
     },
     {
-      id: 'compliance',
       title: 'Compliance Reports',
-      description: 'Compliance and audit reports for agent identities',
-      url: '', // Add your screenshot URL
+      content: `Compliance and audit reports for agent identities.
+
+**Reporting Features:**
+• Compliance score cards
+• Audit trail reports
+• Risk assessment summaries
+• Policy violation tracking
+• Remediation status`,
+      imageUrl: '',
+      imagePlaceholder: 'Compliance Reporting',
     },
   ]
 
@@ -278,281 +310,249 @@ function IdentityAccessPage() {
     setCurrentStage((prev) => (prev - 1 + lifecycleStages.length) % lifecycleStages.length)
   }
 
-  const nextScreenshot = () => {
-    setCurrentScreenshot((prev) => (prev + 1) % screenshots.length)
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
   }
 
-  const prevScreenshot = () => {
-    setCurrentScreenshot((prev) => (prev - 1 + screenshots.length) % screenshots.length)
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
   }
 
   const leftPane = (
     <div className="flex flex-col h-full">
-            <div className="bg-slate-900/50 border-b border-slate-700 p-4">
-              <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                <GitBranch className="w-5 h-5" />
-                Agent Lifecycle Governance
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Understanding agent sprawl and the need for lifecycle management
-              </p>
-            </div>
+      <div className="bg-slate-900/50 border-b border-slate-700 p-4">
+        <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+          <GitBranch className="w-5 h-5" />
+          Agent Lifecycle Governance
+        </h2>
+        <p className="text-sm text-gray-400 mt-1">
+          Understanding agent sprawl and lifecycle management
+        </p>
+      </div>
 
-            <div className="p-6">
-              {/* Agent Activity Feed */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-purple-400" />
-                  Real-Time Agent Activity
-                </h3>
-                <div className="bg-slate-900/50 rounded-lg p-4 mb-4">
-                  <div className="relative h-[400px] w-full overflow-hidden">
-                    <AnimatedList>
-                      {notifications.map((item, idx) => (
-                        <Notification {...item} key={`${item.name}-${item.description}-${idx}`} />
-                      ))}
-                    </AnimatedList>
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-slate-900/50"></div>
-                  </div>
-                  <div className="text-center mt-4">
-                    <p className="text-gray-300 text-sm mb-2">
-                      Without governance, organizations face:
-                    </p>
-                    <ul className="text-left text-gray-400 text-xs space-y-1">
-                      <li className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        Untracked agent proliferation
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        Unknown permission boundaries
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        Security and compliance risks
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        Orphaned credentials and access
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              {/* Lifecycle Stage Display */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-purple-400" />
-                    Lifecycle Stage {currentStage + 1} of {lifecycleStages.length}
-                  </h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={prevStage}
-                      className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                      aria-label="Previous stage"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-white" />
-                    </button>
-                    <button
-                      onClick={nextStage}
-                      className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                      aria-label="Next stage"
-                    >
-                      <ChevronRight className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Progress Indicator */}
-                <div className="flex gap-1 mb-6">
-                  {lifecycleStages.map((_, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex-1 h-1 rounded-full transition-colors ${
-                        idx === currentStage
-                          ? 'bg-purple-500'
-                          : idx < currentStage
-                            ? 'bg-purple-500/50'
-                            : 'bg-slate-700'
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                <motion.div
-                  key={currentStage}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-slate-900/50 rounded-lg p-6"
-                >
-                  <h4 className="text-xl font-bold text-white mb-2">
-                    {lifecycleStages[currentStage].title}
-                  </h4>
-                  <p className="text-gray-400 mb-4">
-                    {lifecycleStages[currentStage].description}
-                  </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h5 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-red-500" />
-                        Key Risks
-                      </h5>
-                      <ul className="space-y-1">
-                        {lifecycleStages[currentStage].risks.map((risk, idx) => (
-                          <li key={idx} className="text-xs text-gray-400 flex items-start gap-2">
-                            <ArrowRight className="w-3 h-3 mt-0.5 flex-shrink-0 text-red-500" />
-                            <span>{risk}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h5 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500" />
-                        Controls
-                      </h5>
-                      <ul className="space-y-1">
-                        {lifecycleStages[currentStage].controls.map((control, idx) => (
-                          <li key={idx} className="text-xs text-gray-400 flex items-start gap-2">
-                            <ArrowRight className="w-3 h-3 mt-0.5 flex-shrink-0 text-green-500" />
-                            <span>{control}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Navigation Hint */}
-              <div className="text-center">
-                <p className="text-xs text-gray-500">
-                  Use the navigation buttons to explore each lifecycle stage
-                </p>
-              </div>
-            </div>
-    </div>
-  )
-
-  const rightPane = (
-    <div className="flex flex-col h-full">
-            <div className="bg-slate-900/50 border-b border-slate-700 p-4">
-              <h2 className="text-xl font-semibold text-white">
-                Microsoft Entra Agent ID
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Identity and access management for AI agents
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Screenshot Navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-300">
-                  {currentScreenshot + 1} / {screenshots.length}
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={prevScreenshot}
-                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                    aria-label="Previous screenshot"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-white" />
-                  </button>
-                  <button
-                    onClick={nextScreenshot}
-                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-                    aria-label="Next screenshot"
-                  >
-                    <ChevronRight className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Screenshot Display */}
-              <motion.div
-                key={currentScreenshot}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="mb-4"
-              >
-                <div className="bg-slate-900/50 rounded-lg p-4 mb-3">
-                  <h4 className="text-lg font-semibold text-white mb-2">
-                    {screenshots[currentScreenshot].title}
-                  </h4>
-                  <p className="text-sm text-gray-400">
-                    {screenshots[currentScreenshot].description}
-                  </p>
-                </div>
-
-                <div className="bg-slate-900 rounded-lg p-4 min-h-[500px] flex items-center justify-center">
-                  {screenshots[currentScreenshot].url ? (
-                    <img
-                      src={screenshots[currentScreenshot].url}
-                      alt={screenshots[currentScreenshot].title}
-                      className="max-w-full max-h-[500px] object-contain rounded cursor-pointer hover:scale-105 transition-transform"
-                      onClick={nextScreenshot}
-                    />
-                  ) : (
-                    <div className="text-center text-gray-500">
-                      <Users className="w-20 h-20 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm mb-2">
-                        {/* CUSTOMIZATION POINT: Add screenshot URLs */}
-                        Screenshot placeholder - Add URL in code
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        Update the screenshot URL in the screenshots array
-                      </p>
-                      <p className="text-xs text-gray-600 mt-2">
-                        Click arrows to navigate through presentation slides
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-
-              {/* Screenshot Dots */}
-              <div className="flex justify-center gap-2">
-                {screenshots.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentScreenshot(idx)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      idx === currentScreenshot ? 'bg-purple-500' : 'bg-slate-600 hover:bg-slate-500'
-                    }`}
-                    aria-label={`Go to screenshot ${idx + 1}`}
-                  />
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Bot className="w-5 h-5 text-purple-400" />
+            Real-Time Agent Activity
+          </h3>
+          <div className="bg-slate-900/50 rounded-lg p-4 mb-4">
+            <div className="relative h-[300px] w-full overflow-hidden">
+              <AnimatedList>
+                {notifications.map((item, idx) => (
+                  <Notification {...item} key={`${item.name}-${item.description}-${idx}`} />
                 ))}
+              </AnimatedList>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-slate-900/50"></div>
+            </div>
+            <div className="text-center mt-4">
+              <p className="text-gray-300 text-sm mb-2">
+                Without governance, organizations face:
+              </p>
+              <ul className="text-left text-gray-400 text-xs space-y-1">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  Untracked agent proliferation
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  Unknown permission boundaries
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  Security and compliance risks
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  Orphaned credentials and access
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-400" />
+              Lifecycle Stage {currentStage + 1} of {lifecycleStages.length}
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={prevStage}
+                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                aria-label="Previous stage"
+              >
+                <ChevronLeft className="w-4 h-4 text-white" />
+              </button>
+              <button
+                onClick={nextStage}
+                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                aria-label="Next stage"
+              >
+                <ChevronRight className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-1 mb-6">
+            {lifecycleStages.map((_, idx) => (
+              <div
+                key={idx}
+                className={`flex-1 h-1 rounded-full transition-colors ${
+                  idx === currentStage
+                    ? 'bg-purple-500'
+                    : idx < currentStage
+                      ? 'bg-purple-500/50'
+                      : 'bg-slate-700'
+                }`}
+              />
+            ))}
+          </div>
+
+          <motion.div
+            key={currentStage}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="bg-slate-900/50 rounded-lg p-6"
+          >
+            <h4 className="text-xl font-bold text-white mb-2">
+              {lifecycleStages[currentStage].title}
+            </h4>
+            <p className="text-gray-400 mb-4">
+              {lifecycleStages[currentStage].description}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h5 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  Key Risks
+                </h5>
+                <ul className="space-y-1">
+                  {lifecycleStages[currentStage].risks.map((risk, idx) => (
+                    <li key={idx} className="text-xs text-gray-400 flex items-start gap-2">
+                      <ArrowRight className="w-3 h-3 mt-0.5 flex-shrink-0 text-red-500" />
+                      <span>{risk}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              {/* Key Features */}
-              <div className="mt-6 bg-slate-900/50 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-white mb-3">
-                  Key Features of Entra Agent ID
-                </h4>
-                <ul className="space-y-2">
-                  {[
-                    'Centralized agent identity management',
-                    'Lifecycle automation and orchestration',
-                    'Granular permission and role assignment',
-                    'Real-time activity monitoring and alerts',
-                    'Compliance reporting and audit trails',
-                    'Integration with security tools',
-                  ].map((feature, idx) => (
-                    <li key={idx} className="text-xs text-gray-400 flex items-center gap-2">
-                      <Shield className="w-3 h-3 text-purple-400 flex-shrink-0" />
-                      <span>{feature}</span>
+              <div>
+                <h5 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  Controls
+                </h5>
+                <ul className="space-y-1">
+                  {lifecycleStages[currentStage].controls.map((control, idx) => (
+                    <li key={idx} className="text-xs text-gray-400 flex items-start gap-2">
+                      <ArrowRight className="w-3 h-3 mt-0.5 flex-shrink-0 text-green-500" />
+                      <span>{control}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
+          </motion.div>
+        </div>
+
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            Use navigation buttons to explore each lifecycle stage
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const rightPane = (
+    <div className="flex flex-col h-full">
+      <div className="bg-slate-900/50 border-b border-slate-700 p-4">
+        <h2 className="text-xl font-semibold text-white">
+          Microsoft Entra Agent ID
+        </h2>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <motion.div
+          key={currentSlide}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+          className="h-full flex flex-col"
+        >
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-gray-400">
+              Slide {currentSlide + 1} of {slides.length}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={prevSlide}
+                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="w-4 h-4 text-white" />
+              </button>
+              <button
+                onClick={nextSlide}
+                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Large Screenshot Section */}
+          <div className="mb-6">
+            <div className="bg-slate-900 rounded-lg overflow-hidden" style={{ height: '450px' }}>
+              {slides[currentSlide].imageUrl ? (
+                <img
+                  src={slides[currentSlide].imageUrl}
+                  alt={slides[currentSlide].title}
+                  className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                  onClick={nextSlide}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                  <div className="text-center text-gray-500">
+                    <Users className="w-24 h-24 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-semibold">{slides[currentSlide].imagePlaceholder}</p>
+                    <p className="text-sm mt-2">Add screenshot URL for presentation</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Text Content Section */}
+          <div className="flex-1">
+            <h3 className="text-2xl font-bold text-white mb-4">
+              {slides[currentSlide].title}
+            </h3>
+            <div className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+              {slides[currentSlide].content}
+            </div>
+          </div>
+
+          {/* Slide Navigation Dots */}
+          <div className="flex justify-center gap-2 mt-6">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentSlide(idx)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  idx === currentSlide ? 'bg-purple-500 w-8' : 'bg-slate-600 hover:bg-slate-500'
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+        </motion.div>
+      </div>
     </div>
   )
 

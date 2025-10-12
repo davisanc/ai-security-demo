@@ -153,63 +153,105 @@ const regulations: Array<Regulation> = [
   },
 ]
 
-interface Screenshot {
-  id: string
+interface Slide {
   title: string
-  description: string
-  url: string
+  content: string
+  imageUrl: string
+  imagePlaceholder: string
 }
 
 function CompliancePage() {
   const [selectedRegulation, setSelectedRegulation] = useState(0)
-  const [currentScreenshot, setCurrentScreenshot] = useState(0)
+  const [currentSlide, setCurrentSlide] = useState(0)
   const [paneState, setPaneState] = useState<'both' | 'left' | 'right'>('left')
 
-  const screenshots: Array<Screenshot> = [
+  const slides: Array<Slide> = [
     {
-      id: 'dashboard',
       title: 'Compliance Dashboard',
-      description: 'Overview of compliance status across regulations',
-      url: '',
+      content: `Overview of compliance status across all applicable regulations.
+
+**Key Features:**
+• Real-time compliance score
+• Regulatory requirement tracking
+• Risk assessment summaries
+• Automated control monitoring
+• Gap analysis and remediation`,
+      imageUrl: '',
+      imagePlaceholder: 'Microsoft Purview for AI - Dashboard',
     },
     {
-      id: 'risk-assessment',
       title: 'AI Risk Assessment',
-      description: 'Risk classification and assessment tools',
-      url: '',
+      content: `Classification and assessment tools for AI systems.
+
+**Assessment Areas:**
+• Risk level classification
+• Impact analysis
+• Control effectiveness
+• Compliance mapping
+• Continuous monitoring`,
+      imageUrl: '',
+      imagePlaceholder: 'Risk Assessment Tools',
     },
     {
-      id: 'controls',
       title: 'Control Implementation',
-      description: 'Tracking implementation of required controls',
-      url: '',
+      content: `Track implementation of required controls across frameworks.
+
+**Implementation Tracking:**
+• Control status monitoring
+• Evidence collection
+• Policy enforcement
+• Audit trail generation
+• Remediation workflows`,
+      imageUrl: '',
+      imagePlaceholder: 'Control Management',
     },
     {
-      id: 'documentation',
       title: 'Documentation Management',
-      description: 'Technical documentation and compliance records',
-      url: '',
+      content: `Maintain technical documentation and compliance records.
+
+**Document Types:**
+• Technical specifications
+• Risk assessments
+• Training data documentation
+• System architecture
+• Change logs`,
+      imageUrl: '',
+      imagePlaceholder: 'Documentation Repository',
     },
     {
-      id: 'audit',
       title: 'Audit and Reporting',
-      description: 'Compliance reports and audit trails',
-      url: '',
+      content: `Generate compliance reports and maintain audit trails.
+
+**Reporting Capabilities:**
+• Automated report generation
+• Compliance score cards
+• Audit-ready documentation
+• Incident reporting
+• Regulatory submissions`,
+      imageUrl: '',
+      imagePlaceholder: 'Compliance Reports',
     },
     {
-      id: 'monitoring',
       title: 'Continuous Monitoring',
-      description: 'Real-time compliance monitoring and alerts',
-      url: '',
+      content: `Real-time compliance monitoring and alerting.
+
+**Monitoring Features:**
+• Policy violation detection
+• Drift monitoring
+• Automated assessments
+• Alert notifications
+• Trending analysis`,
+      imageUrl: '',
+      imagePlaceholder: 'Continuous Monitoring Dashboard',
     },
   ]
 
-  const nextScreenshot = () => {
-    setCurrentScreenshot((prev) => (prev + 1) % screenshots.length)
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
   }
 
-  const prevScreenshot = () => {
-    setCurrentScreenshot((prev) => (prev - 1 + screenshots.length) % screenshots.length)
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
   }
 
   const leftPane = (
@@ -310,98 +352,82 @@ function CompliancePage() {
         <h2 className="text-xl font-semibold text-white">
           Microsoft Purview for AI - Compliance Manager
         </h2>
-        <p className="text-sm text-gray-400 mt-1">Compliance management and reporting tools</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-300">
-            {currentScreenshot + 1} / {screenshots.length}
-          </h3>
-          <div className="flex gap-2">
-            <button
-              onClick={prevScreenshot}
-              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4 text-white" />
-            </button>
-            <button
-              onClick={nextScreenshot}
-              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-            >
-              <ChevronRight className="w-4 h-4 text-white" />
-            </button>
-          </div>
-        </div>
-
         <motion.div
-          key={currentScreenshot}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          key={currentSlide}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
-          className="mb-4"
+          className="h-full flex flex-col"
         >
-          <div className="bg-slate-900/50 rounded-lg p-4 mb-3">
-            <h4 className="text-lg font-semibold text-white mb-2">
-              {screenshots[currentScreenshot].title}
-            </h4>
-            <p className="text-sm text-gray-400">{screenshots[currentScreenshot].description}</p>
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-gray-400">
+              Slide {currentSlide + 1} of {slides.length}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={prevSlide}
+                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 text-white" />
+              </button>
+              <button
+                onClick={nextSlide}
+                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 text-white" />
+              </button>
+            </div>
           </div>
 
-          <div className="bg-slate-900 rounded-lg p-4 min-h-[500px] flex items-center justify-center">
-            {screenshots[currentScreenshot].url ? (
-              <img
-                src={screenshots[currentScreenshot].url}
-                alt={screenshots[currentScreenshot].title}
-                className="max-w-full max-h-[500px] object-contain rounded cursor-pointer hover:scale-105 transition-transform"
-                onClick={nextScreenshot}
+          {/* Large Screenshot Section */}
+          <div className="mb-6">
+            <div className="bg-slate-900 rounded-lg overflow-hidden" style={{ height: '450px' }}>
+              {slides[currentSlide].imageUrl ? (
+                <img
+                  src={slides[currentSlide].imageUrl}
+                  alt={slides[currentSlide].title}
+                  className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                  onClick={nextSlide}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                  <div className="text-center text-gray-500">
+                    <FileCheck className="w-24 h-24 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-semibold">{slides[currentSlide].imagePlaceholder}</p>
+                    <p className="text-sm mt-2">Add screenshot URL for presentation</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Text Content Section */}
+          <div className="flex-1">
+            <h3 className="text-2xl font-bold text-white mb-4">
+              {slides[currentSlide].title}
+            </h3>
+            <div className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+              {slides[currentSlide].content}
+            </div>
+          </div>
+
+          {/* Slide Navigation Dots */}
+          <div className="flex justify-center gap-2 mt-6">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentSlide(idx)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  idx === currentSlide ? 'bg-green-500 w-8' : 'bg-slate-600 hover:bg-slate-500'
+                }`}
               />
-            ) : (
-              <div className="text-center text-gray-500">
-                <FileCheck className="w-20 h-20 mx-auto mb-4 opacity-50" />
-                <p className="text-sm mb-2">Screenshot placeholder - Add URL in code</p>
-                <p className="text-xs text-gray-600">
-                  Update the screenshot URL in the screenshots array
-                </p>
-              </div>
-            )}
+            ))}
           </div>
         </motion.div>
-
-        <div className="flex justify-center gap-2 mb-6">
-          {screenshots.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentScreenshot(idx)}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                idx === currentScreenshot ? 'bg-green-500' : 'bg-slate-600 hover:bg-slate-500'
-              }`}
-            />
-          ))}
-        </div>
-
-        <div className="bg-slate-900/50 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-white mb-3">
-            Purview Compliance Manager Features
-          </h4>
-          <ul className="space-y-2">
-            {[
-              'Multi-regulation compliance tracking',
-              'Automated control assessments',
-              'Risk scoring and prioritization',
-              'Evidence collection and management',
-              'Compliance score calculation',
-              'Regulatory change notifications',
-              'Remediation workflow management',
-              'Audit-ready documentation',
-            ].map((feature, idx) => (
-              <li key={idx} className="text-xs text-gray-400 flex items-center gap-2">
-                <FileCheck className="w-3 h-3 text-green-400 flex-shrink-0" />
-                <span>{feature}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
     </div>
   )

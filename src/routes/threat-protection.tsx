@@ -2,14 +2,17 @@ import { createFileRoute } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Database, Lock, Send } from 'lucide-react'
 import { useState } from 'react'
+import type React from 'react'
 import { AnimatedTwoPane } from '@/components/AnimatedTwoPane'
 import { generateFallbackResponse, isAPIConfigured } from '@/lib/api'
 import { sendChatMessage } from '@/lib/chat-server'
 import { 
   detectContentSafetyError, 
   formatContentSafetyMessage,
+  formatContentSafetyMessageJSX,
   type ContentSafetyError 
 } from '@/lib/content-safety'
+import { useChatHistory } from '@/hooks/useChatHistory'
 
 export const Route = createFileRoute('/threat-protection')({
   component: ThreatProtectionPage,
@@ -18,7 +21,7 @@ export const Route = createFileRoute('/threat-protection')({
 interface Message {
   id: string
   role: 'user' | 'assistant'
-  content: string
+  content: React.ReactNode
   timestamp: Date
 }
 
@@ -132,6 +135,9 @@ function ThreatProtectionPage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [paneState, setPaneState] = useState<'both' | 'left' | 'right'>('left')
 
+  // Initialize chat history hook
+  const { addToHistory, navigateHistory, resetNavigation } = useChatHistory({ maxHistory: 80 })
+
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
@@ -144,7 +150,11 @@ function ThreatProtectionPage() {
 
     setMessages((prev) => [...prev, userMessage])
     const currentInput = inputValue
+    
+    // Add to history before clearing input
+    addToHistory(inputValue)
     setInputValue('')
+    resetNavigation()
 
     const matchedThreat = threatExamples.find((threat) =>
       currentInput.toLowerCase().includes(threat.examplePrompt.toLowerCase().substring(0, 20))
@@ -247,7 +257,7 @@ See the threat analysis panel for detailed information.
         const blockedMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: formatContentSafetyMessage(contentSafetyError),
+          content: formatContentSafetyMessageJSX(contentSafetyError),
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, blockedMessage])
@@ -355,6 +365,21 @@ See the threat analysis panel for detailed information.
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                const historyValue = navigateHistory('up', inputValue)
+                if (historyValue !== null) {
+                  setInputValue(historyValue)
+                }
+              } else if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                const historyValue = navigateHistory('down', inputValue)
+                if (historyValue !== null) {
+                  setInputValue(historyValue)
+                }
+              }
+            }}
             placeholder="Enter your prompt..."
             className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
           />

@@ -1,3 +1,6 @@
+import React from 'react'
+import { Highlighter } from '@/components/ui/highlighter'
+
 // Azure Content Safety error handling and explanations
 
 export interface ContentSafetyError {
@@ -452,45 +455,95 @@ function categorizeContentFilter(errorMessage: string, errorBody: any): ContentS
  * Format a Content Safety error for display in the chat
  */
 export function formatContentSafetyMessage(error: ContentSafetyError): string {
-  const categoryIcons: Record<string, string> = {
-    jailbreak: '🚫',
-    prompt_injection: '⚠️',
-    protected_material: '©️',
-    hate: '🛑',
-    sexual: '🔞',
-    violence: '⚔️',
-    self_harm: '🆘',
-    unknown: '🛡️'
-  }
+  // Professional, concise message suitable for executive audiences.
+  return `Azure Content Safety — Detection Notice
 
-  const icon = categoryIcons[error.category] || '🛡️'
-  
-  return `${icon} **${error.title}**
-
+${error.title}
 ${error.description}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+------------------------------------------------------------
 
-**🎯 Azure Content Safety Detection:**
-✓ Request analyzed and blocked before reaching the AI model
-✓ Real-time threat protection active
-✓ Compliance policies enforced
+Summary:
+- Category: ${formatCategory(error.category)}
+- Severity: ${formatSeverity(error.severity)}
+- Action Taken: The request was blocked based on configured safety policies.
 
-**📊 Classification Details:**
-• **Category:** ${formatCategory(error.category)}
-• **Severity:** ${formatSeverity(error.severity)}
-• **Action:** Request Blocked
-• **Policy:** Azure Responsible AI
+Details:
+Azure Content Safety analyzed the request and identified content that matches configured policy criteria. The system applied real-time protections and prevented the content from reaching the model to reduce risk and ensure compliance with organizational policies.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Suggested next steps:
+- Review the analysis panel for detailed classification and evidence.
+- If this request is expected (false positive), consider adjusting policy thresholds or adding an allowance for trusted contexts.
+- Consult your compliance or security team for guidance on remediation and audit requirements.
 
-**💡 What This Means:**
-This demonstrates Azure Content Safety working in real-time to protect your AI applications. The request was analyzed across multiple dimensions and blocked based on your configured policies.
+Learn more: ${error.learnMoreUrl}`
+}
 
-**👉 View Details:** Check the threat analysis panel → 
-to see exactly how Content Safety detected and categorized this threat, plus learn about the protection mechanisms in place.
+/**
+ * Return a JSX/React-friendly representation of a content safety message that highlights
+ * the most important pieces (category, severity, action) using the project's Highlighter.
+ *
+ * This is a React component that can be used in TSX files to render rich, highlighted UI.
+ */
+export function ContentSafetyMessage({ error }: { error: ContentSafetyError }): React.ReactElement {
+  const severityColor =
+    error.severity === 'high' ? '#FF6B6B' : error.severity === 'medium' ? '#FFA500' : '#A0AEC0'
 
-**🔗 Learn More:** ${error.learnMoreUrl}`
+  return (
+    <div className="text-left relative z-10">
+      <p className="text-sm text-gray-400 mb-2">Azure Content Safety — Detection Notice</p>
+      <h3 className="text-lg font-bold text-white mb-2">{error.title}</h3>
+      <p className="text-sm text-gray-300 mb-3">{error.description}</p>
+      <hr className="my-3 border-slate-700" />
+      
+      <div className="mb-3">
+        <p className="text-sm text-gray-400 mb-2 font-semibold">Summary:</p>
+        <ul className="text-sm list-none pl-0 space-y-3">
+          <li className="relative z-10">
+            <span className="inline-block text-gray-300">Category: </span>
+            <span className="inline-block relative z-10 font-semibold text-white">
+              <Highlighter action="underline" color="#60D5FA" strokeWidth={3}>
+                {formatCategory(error.category)}
+              </Highlighter>
+            </span>
+          </li>
+          <li className="relative z-10">
+            <span className="inline-block text-gray-300">Severity: </span>
+            <span className="inline-block relative z-10 font-bold text-white">
+              <Highlighter action="circle" color={severityColor} strokeWidth={3}>
+                {formatSeverity(error.severity)}
+              </Highlighter>
+            </span>
+          </li>
+          <li className="relative z-10">
+            <span className="inline-block text-gray-300">Action: </span>
+            <span className="inline-block relative z-10 font-medium text-white">
+              <Highlighter action="box" color="#7FD85C" strokeWidth={3}>
+                Request blocked
+              </Highlighter>
+            </span>
+          </li>
+        </ul>
+      </div>
+      
+      <div className="text-sm text-gray-300 whitespace-pre-wrap mb-3">
+        {error.explanation}
+      </div>
+      
+      <div className="text-xs text-cyan-300">
+        <a href={error.learnMoreUrl} target="_blank" rel="noreferrer">
+          Learn more
+        </a>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Legacy function that returns a React element for backward compatibility
+ */
+export function formatContentSafetyMessageJSX(error: ContentSafetyError): React.ReactNode {
+  return <ContentSafetyMessage error={error} />
 }
 
 /**
@@ -514,12 +567,12 @@ function formatCategory(category: string): string {
  * Format severity for display
  */
 function formatSeverity(severity: string): string {
-  const severityEmoji: Record<string, string> = {
-    high: '🔴 HIGH',
-    medium: '🟡 MEDIUM',
-    low: '🟢 LOW'
+  const severityLabels: Record<string, string> = {
+    high: 'HIGH',
+    medium: 'MEDIUM',
+    low: 'LOW'
   }
-  return severityEmoji[severity] || severity.toUpperCase()
+  return severityLabels[severity] || severity.toUpperCase()
 }
 
 /**

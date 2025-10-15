@@ -33,8 +33,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Install MCP Server Dependencies
+        run: |
+          cd mcp-server
+          npm install
 
       - name: Azure Login
         uses: azure/login@v1

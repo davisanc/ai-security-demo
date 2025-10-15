@@ -185,28 +185,23 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create Static Web App (if not exists)
-        id: create-swa
+      - name: Get or Create Static Web App deployment token
+        id: swa-token
         run: |
+          # Check if Static Web App exists, if not create it
           if ! az staticwebapp show --name ${{ env.STATIC_WEB_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
             echo "Creating Static Web App..."
             az staticwebapp create \
               --name ${{ env.STATIC_WEB_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --location ${{ env.AZURE_LOCATION }} \
-              --sku Free \
-              --source https://github.com/${{ github.repository }} \
-              --branch main \
-              --app-location "/" \
-              --output-location "dist" \
-              --login-with-github
+              --sku Free
+            echo "Static Web App created successfully"
           else
             echo "Static Web App already exists"
           fi
-
-      - name: Get Static Web App deployment token
-        id: swa-token
-        run: |
+          
+          # Get deployment token
           SWA_TOKEN=$(az staticwebapp secrets list \
             --name ${{ env.STATIC_WEB_APP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \

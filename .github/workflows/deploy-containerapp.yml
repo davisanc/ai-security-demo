@@ -169,42 +169,31 @@ jobs:
       - name: Create Dockerfile for Web App
         run: |
           cat > Dockerfile <<'EOF'
-          FROM node:20-alpine AS base
+          FROM node:20-alpine
           
-          # Install dependencies only when needed
-          FROM base AS deps
           WORKDIR /app
+          
+          # Copy package files
           COPY package.json package-lock.json ./
+          
+          # Install dependencies
           RUN npm ci
           
-          # Rebuild the source code only when needed
-          FROM base AS builder
-          WORKDIR /app
-          COPY --from=deps /app/node_modules ./node_modules
+          # Copy all source files
           COPY . .
           
-          # Build the app
+          # Build the application
           RUN npm run build
           
-          # Production image, copy all the files and run the app
-          FROM base AS runner
-          WORKDIR /app
-          
+          # Set environment
           ENV NODE_ENV=production
           ENV PORT=3000
-          
-          # Copy built application and all necessary files
-          COPY --from=builder /app/dist ./dist
-          COPY --from=builder /app/node_modules ./node_modules
-          COPY --from=builder /app/package.json ./package.json
-          COPY --from=builder /app/vite.config.ts ./vite.config.ts
-          COPY --from=builder /app/tsconfig.json ./tsconfig.json
           
           # Expose port
           EXPOSE 3000
           
-          # Start the app using vite preview (production mode for TanStack Start)
-          CMD ["npm", "run", "serve"]
+          # Start the app using vite preview (works with TanStack Start SSR)
+          CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "3000"]
           EOF
 
       - name: Build and Push Web App Docker Image

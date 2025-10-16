@@ -181,6 +181,15 @@ jobs:
           VITE_MCP_SERVER_ENDPOINT: ${{ needs.deploy-mcp-server.outputs.mcp-server-url }}
           VITE_MCP_API_KEY: ${{ secrets.MCP_API_KEY }}
 
+      - name: Verify build output
+        run: |
+          echo "Checking build output..."
+          ls -la
+          echo "Contents of dist folder:"
+          ls -la dist || echo "dist folder not found"
+          echo "Looking for index.html:"
+          find . -name "index.html" -type f
+
       - name: Azure Login
         uses: azure/login@v1
         with:
@@ -216,7 +225,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "dist"
+          app_location: ".output/public"
           output_location: ""
           skip_app_build: true
 

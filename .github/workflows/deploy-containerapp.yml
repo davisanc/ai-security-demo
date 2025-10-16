@@ -176,7 +176,7 @@ jobs:
           # Copy package files
           COPY package.json package-lock.json ./
           
-          # Install dependencies
+          # Install ALL dependencies (including devDependencies needed for runtime)
           RUN npm ci
           
           # Copy all source files
@@ -188,13 +188,12 @@ jobs:
           # Set environment
           ENV NODE_ENV=production
           ENV PORT=3000
-          ENV VITE_ALLOWED_HOSTS=*
           
           # Expose port
           EXPOSE 3000
           
-          # Start the app using vite preview (works with TanStack Start SSR)
-          CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "3000", "--strictPort"]
+          # Start the app directly with node using the built server
+          CMD ["node", "dist/server/server.js"]
           EOF
 
       - name: Build and Push Web App Docker Image

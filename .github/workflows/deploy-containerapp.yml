@@ -193,8 +193,8 @@ jobs:
           # Expose port
           EXPOSE 3000
           
-          # Start using npm run serve which runs vite preview
-          CMD ["npm", "run", "serve", "--", "--host", "0.0.0.0", "--port", "3000"]
+          # Start using custom server entry point
+          CMD ["node", "server-entry.js"]
           EOF
 
       - name: Build and Push Web App Docker Image

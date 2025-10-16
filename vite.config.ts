@@ -15,10 +15,12 @@ const config = defineConfig({
     viteReact(),
   ],
   preview: {
-    host: true, // Listen on all addresses
+    host: '0.0.0.0', // Listen on all addresses
     port: 3000,
     strictPort: true,
-    allowedHosts: ['*'], // Allow all hosts
+  },
+  server: {
+    host: true,
   },
 })
 

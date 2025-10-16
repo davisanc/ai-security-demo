@@ -188,12 +188,13 @@ jobs:
           # Set environment
           ENV NODE_ENV=production
           ENV PORT=3000
+          ENV VITE_ALLOWED_HOSTS=*
           
           # Expose port
           EXPOSE 3000
           
           # Start the app using vite preview (works with TanStack Start SSR)
-          CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "3000"]
+          CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "3000", "--strictPort"]
           EOF
 
       - name: Build and Push Web App Docker Image

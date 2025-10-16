@@ -191,17 +191,20 @@ jobs:
           WORKDIR /app
           
           ENV NODE_ENV=production
+          ENV PORT=3000
           
-          # Copy built application
+          # Copy built application and all necessary files
           COPY --from=builder /app/dist ./dist
           COPY --from=builder /app/node_modules ./node_modules
           COPY --from=builder /app/package.json ./package.json
+          COPY --from=builder /app/vite.config.ts ./vite.config.ts
+          COPY --from=builder /app/tsconfig.json ./tsconfig.json
           
           # Expose port
           EXPOSE 3000
           
-          # Start the app
-          CMD ["node", "dist/server/index.js"]
+          # Start the app using vite preview (production mode for TanStack Start)
+          CMD ["npm", "run", "serve"]
           EOF
 
       - name: Build and Push Web App Docker Image

@@ -1,0 +1,314 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AZURE_RESOURCE_GROUP: ai-security-rg
+  AZURE_LOCATION: eastus
+  ACR_NAME: aisecurityacr
+  MCP_SERVER_NAME: mcp-server
+  WEB_APP_NAME: ai-security-web
+  CONTAINER_ENV_NAME: ai-security-env
+
+jobs:
+  # Job 1: Build and Deploy MCP Server
+  deploy-mcp-server:
+    runs-on: ubuntu-latest
+    name: Deploy MCP Server to Container Apps
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install MCP Server Dependencies
+        run: |
+          cd mcp-server
+          npm install
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Resource Group (if not exists)
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }} \
+            --tags environment=production project=ai-security-demo
+
+      - name: Create Azure Container Registry (if not exists)
+        run: |
+          if ! az acr show --name ${{ env.ACR_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+            echo "Creating Azure Container Registry..."
+            az acr create \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --name ${{ env.ACR_NAME }} \
+              --sku Basic \
+              --admin-enabled true
+          else
+            echo "Azure Container Registry already exists"
+          fi
+
+      - name: Build and Push MCP Server Docker Image
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+          cd mcp-server
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/mcp-server:${{ github.sha }} .
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/mcp-server:latest .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/mcp-server:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/mcp-server:latest
+
+      - name: Create Container Apps Environment (if not exists)
+        run: |
+          if ! az containerapp env show --name ${{ env.CONTAINER_ENV_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+            echo "Creating Container Apps Environment..."
+            az containerapp env create \
+              --name ${{ env.CONTAINER_ENV_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --location ${{ env.AZURE_LOCATION }}
+          fi
+
+      - name: Get ACR Credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query passwords[0].value -o tsv)
+          echo "::add-mask::$ACR_PASSWORD"
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Deploy/Update MCP Server Container App
+        run: |
+          if az containerapp show --name ${{ env.MCP_SERVER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+            echo "Updating existing MCP Server..."
+            az containerapp update \
+              --name ${{ env.MCP_SERVER_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/mcp-server:${{ github.sha }}
+          else
+            echo "Creating new MCP Server..."
+            az containerapp create \
+              --name ${{ env.MCP_SERVER_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --environment ${{ env.CONTAINER_ENV_NAME }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/mcp-server:${{ github.sha }} \
+              --target-port 8080 \
+              --ingress external \
+              --min-replicas 1 \
+              --max-replicas 10 \
+              --cpu 0.5 \
+              --memory 1.0Gi \
+              --registry-server ${{ env.ACR_NAME }}.azurecr.io \
+              --registry-username ${{ steps.acr-creds.outputs.username }} \
+              --registry-password ${{ steps.acr-creds.outputs.password }} \
+              --secrets \
+                azure-openai-endpoint=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+                azure-openai-key=${{ secrets.AZURE_OPENAI_API_KEY }} \
+              --env-vars \
+                AZURE_OPENAI_ENDPOINT=secretref:azure-openai-endpoint \
+                AZURE_OPENAI_API_KEY=secretref:azure-openai-key \
+                AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
+                PORT=8080 \
+                NODE_ENV=production
+          fi
+
+      - name: Get MCP Server URL
+        id: mcp-url
+        run: |
+          MCP_URL=$(az containerapp show \
+            --name ${{ env.MCP_SERVER_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "MCP Server URL: https://$MCP_URL"
+          echo "url=https://$MCP_URL" >> $GITHUB_OUTPUT
+
+    outputs:
+      mcp-server-url: ${{ steps.mcp-url.outputs.url }}
+
+  # Job 2: Build and Deploy Web App to Container Apps
+  deploy-web-app:
+    runs-on: ubuntu-latest
+    needs: deploy-mcp-server
+    name: Deploy Web App to Container Apps
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_MCP_SERVER_ENDPOINT: ${{ needs.deploy-mcp-server.outputs.mcp-server-url }}
+          VITE_MCP_API_KEY: ${{ secrets.MCP_API_KEY }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Dockerfile for Web App
+        run: |
+          cat > Dockerfile <<'EOF'
+          FROM node:20-alpine AS base
+          
+          # Install dependencies only when needed
+          FROM base AS deps
+          WORKDIR /app
+          COPY package.json package-lock.json ./
+          RUN npm ci
+          
+          # Rebuild the source code only when needed
+          FROM base AS builder
+          WORKDIR /app
+          COPY --from=deps /app/node_modules ./node_modules
+          COPY . .
+          
+          # Build the app
+          RUN npm run build
+          
+          # Production image, copy all the files and run the app
+          FROM base AS runner
+          WORKDIR /app
+          
+          ENV NODE_ENV=production
+          
+          # Copy built application
+          COPY --from=builder /app/dist ./dist
+          COPY --from=builder /app/node_modules ./node_modules
+          COPY --from=builder /app/package.json ./package.json
+          
+          # Expose port
+          EXPOSE 3000
+          
+          # Start the app
+          CMD ["node", "dist/server/index.js"]
+          EOF
+
+      - name: Build and Push Web App Docker Image
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }} .
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/web-app:latest .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/web-app:latest
+
+      - name: Get ACR Credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query passwords[0].value -o tsv)
+          echo "::add-mask::$ACR_PASSWORD"
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Deploy/Update Web App Container App
+        run: |
+          if az containerapp show --name ${{ env.WEB_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+            echo "Updating existing Web App..."
+            az containerapp update \
+              --name ${{ env.WEB_APP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }}
+          else
+            echo "Creating new Web App..."
+            az containerapp create \
+              --name ${{ env.WEB_APP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --environment ${{ env.CONTAINER_ENV_NAME }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }} \
+              --target-port 3000 \
+              --ingress external \
+              --min-replicas 0 \
+              --max-replicas 5 \
+              --cpu 0.5 \
+              --memory 1.0Gi \
+              --registry-server ${{ env.ACR_NAME }}.azurecr.io \
+              --registry-username ${{ steps.acr-creds.outputs.username }} \
+              --registry-password ${{ steps.acr-creds.outputs.password }} \
+              --env-vars \
+                VITE_MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
+                VITE_MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
+                NODE_ENV=production \
+                PORT=3000
+          fi
+
+      - name: Get Web App URL
+        id: webapp-url
+        run: |
+          WEBAPP_URL=$(az containerapp show \
+            --name ${{ env.WEB_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Web App URL: https://$WEBAPP_URL"
+          echo "url=https://$WEBAPP_URL" >> $GITHUB_OUTPUT
+
+    outputs:
+      web-app-url: ${{ steps.webapp-url.outputs.url }}
+
+  # Job 3: Final Configuration and Testing
+  configure-services:
+    runs-on: ubuntu-latest
+    needs: [deploy-mcp-server, deploy-web-app]
+    name: Configure CORS and Test Services
+    
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update MCP Server CORS Settings
+        run: |
+          az containerapp update \
+            --name ${{ env.MCP_SERVER_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --set-env-vars \
+              ALLOWED_ORIGINS=https://${{ needs.deploy-web-app.outputs.web-app-url }},http://localhost:3000
+
+      - name: Test MCP Server Health
+        run: |
+          echo "Testing MCP Server health endpoint..."
+          curl -f ${{ needs.deploy-mcp-server.outputs.mcp-server-url }}/health || echo "Health check failed"
+
+      - name: Test Web App Health
+        run: |
+          echo "Testing Web App..."
+          curl -f https://${{ needs.deploy-web-app.outputs.web-app-url }} || echo "Web app check failed"
+
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Deployment Complete!"
+          echo "================================"
+          echo "📦 MCP Server URL: ${{ needs.deploy-mcp-server.outputs.mcp-server-url }}"
+          echo "🌐 Web App URL: https://${{ needs.deploy-web-app.outputs.web-app-url }}"
+          echo "================================"
+          echo "💰 Cost Optimization Tips:"
+          echo "- Web app has min-replicas=0 (scales to zero when idle)"
+          echo "- MCP server has min-replicas=1 (always available)"
+          echo "- Monitor usage in Azure Portal > Container Apps"
+          echo "================================"
+          echo "Next steps:"
+          echo "1. Visit your Web App to test the application"
+          echo "2. Check Azure Portal for monitoring and logs"
+          echo "3. Configure custom domain if needed"
+          echo "4. Set up Azure Monitor alerts for cost tracking"

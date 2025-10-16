@@ -18,6 +18,11 @@ const config = defineConfig({
     host: '0.0.0.0', // Listen on all addresses
     port: 3000,
     strictPort: true,
+    allowedHosts: [
+      'ai-security-web.jollyocean-4c140d70.eastus.azurecontainerapps.io',
+      'localhost',
+      '127.0.0.1',
+    ],
   },
   server: {
     host: true,

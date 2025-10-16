@@ -221,7 +221,17 @@ jobs:
             az containerapp update \
               --name ${{ env.WEB_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --image ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }}
+              --image ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }} \
+              --set-env-vars \
+                VITE_MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
+                VITE_MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
+                VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+                VITE_AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+                VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                VITE_AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
+                VITE_AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                NODE_ENV=production \
+                PORT=3000
           else
             echo "Creating new Web App..."
             az containerapp create \
@@ -241,6 +251,11 @@ jobs:
               --env-vars \
                 VITE_MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
                 VITE_MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
+                VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+                VITE_AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+                VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                VITE_AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
+                VITE_AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
                 NODE_ENV=production \
                 PORT=3000
           fi

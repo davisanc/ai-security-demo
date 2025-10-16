@@ -13,6 +13,7 @@ on:
 env:
   AZURE_RESOURCE_GROUP: ai-security-rg
   AZURE_LOCATION: eastus
+  AZURE_LOCATION_SWA: eastus2  # Static Web Apps requires specific regions
   ACR_NAME: aisecurityacr
   MCP_SERVER_NAME: mcp-server
   CONTAINER_ENV_NAME: ai-security-env
@@ -194,7 +195,7 @@ jobs:
             az staticwebapp create \
               --name ${{ env.STATIC_WEB_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --location ${{ env.AZURE_LOCATION }} \
+              --location ${{ env.AZURE_LOCATION_SWA }} \
               --sku Free
             echo "Static Web App created successfully"
           else

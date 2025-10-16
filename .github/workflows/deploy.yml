@@ -185,10 +185,40 @@ jobs:
         run: |
           echo "Checking build output..."
           ls -la
-          echo "Contents of dist folder:"
-          ls -la dist || echo "dist folder not found"
-          echo "Looking for index.html:"
-          find . -name "index.html" -type f
+          echo "=== Contents of dist folder ==="
+          ls -la dist 2>/dev/null || echo "dist folder not found"
+          echo "=== Contents of .output folder ==="
+          ls -la .output 2>/dev/null || echo ".output folder not found"
+          echo "=== Contents of .output/public folder ==="
+          ls -la .output/public 2>/dev/null || echo ".output/public folder not found"
+          echo "=== Contents of build folder ==="
+          ls -la build 2>/dev/null || echo "build folder not found"
+          echo "=== Looking for index.html ==="
+          find . -name "index.html" -type f 2>/dev/null || echo "No index.html found"
+          echo "=== All directories ==="
+          find . -maxdepth 3 -type d 2>/dev/null | head -20
+
+      - name: Determine build output directory
+        id: build-dir
+        run: |
+          if [ -f "dist/client/index.html" ]; then
+            echo "BUILD_DIR=dist/client" >> $GITHUB_OUTPUT
+            echo "Found build in dist/client/"
+          elif [ -f "dist/index.html" ]; then
+            echo "BUILD_DIR=dist" >> $GITHUB_OUTPUT
+            echo "Found build in dist/"
+          elif [ -f ".output/public/index.html" ]; then
+            echo "BUILD_DIR=.output/public" >> $GITHUB_OUTPUT
+            echo "Found build in .output/public/"
+          elif [ -f "build/index.html" ]; then
+            echo "BUILD_DIR=build" >> $GITHUB_OUTPUT
+            echo "Found build in build/"
+          else
+            echo "ERROR: Cannot find index.html in any expected location"
+            echo "Searching for index.html..."
+            find dist -name "index.html" -type f 2>/dev/null || echo "No index.html found in dist"
+            exit 1
+          fi
 
       - name: Azure Login
         uses: azure/login@v1
@@ -225,7 +255,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: ".output/public"
+          app_location: "${{ steps.build-dir.outputs.BUILD_DIR }}"
           output_location: ""
           skip_app_build: true
 

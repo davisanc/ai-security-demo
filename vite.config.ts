@@ -14,6 +14,12 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  preview: {
+    host: true, // Listen on all addresses
+    port: 3000,
+    strictPort: true,
+    allowedHosts: ['*'], // Allow all hosts
+  },
 })
 
 export default config

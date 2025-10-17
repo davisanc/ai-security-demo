@@ -160,6 +160,11 @@ jobs:
         env:
           VITE_MCP_SERVER_ENDPOINT: ${{ needs.deploy-mcp-server.outputs.mcp-server-url }}
           VITE_MCP_API_KEY: ${{ secrets.MCP_API_KEY }}
+          VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          VITE_AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+          VITE_AZURE_OPENAI_API_VERSION: ${{ secrets.AZURE_OPENAI_API_VERSION }}
+          VITE_AZURE_OPENAI_MODEL: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
 
       - name: Azure Login
         uses: azure/login@v1
@@ -182,6 +187,24 @@ jobs:
           # Copy all source files
           COPY . .
           
+          # Accept build arguments for environment variables
+          ARG VITE_MCP_SERVER_ENDPOINT
+          ARG VITE_MCP_API_KEY
+          ARG VITE_AZURE_OPENAI_ENDPOINT
+          ARG VITE_AZURE_OPENAI_API_KEY
+          ARG VITE_AZURE_OPENAI_DEPLOYMENT
+          ARG VITE_AZURE_OPENAI_API_VERSION
+          ARG VITE_AZURE_OPENAI_MODEL
+          
+          # Set as environment variables for the build
+          ENV VITE_MCP_SERVER_ENDPOINT=$VITE_MCP_SERVER_ENDPOINT
+          ENV VITE_MCP_API_KEY=$VITE_MCP_API_KEY
+          ENV VITE_AZURE_OPENAI_ENDPOINT=$VITE_AZURE_OPENAI_ENDPOINT
+          ENV VITE_AZURE_OPENAI_API_KEY=$VITE_AZURE_OPENAI_API_KEY
+          ENV VITE_AZURE_OPENAI_DEPLOYMENT=$VITE_AZURE_OPENAI_DEPLOYMENT
+          ENV VITE_AZURE_OPENAI_API_VERSION=$VITE_AZURE_OPENAI_API_VERSION
+          ENV VITE_AZURE_OPENAI_MODEL=$VITE_AZURE_OPENAI_MODEL
+          
           # Build the application
           RUN npm run build
           
@@ -200,8 +223,24 @@ jobs:
       - name: Build and Push Web App Docker Image
         run: |
           az acr login --name ${{ env.ACR_NAME }}
-          docker build -t ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }} .
-          docker build -t ${{ env.ACR_NAME }}.azurecr.io/web-app:latest .
+          docker build \
+            --build-arg VITE_MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
+            --build-arg VITE_MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
+            --build-arg VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+            --build-arg VITE_AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+            --build-arg VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+            --build-arg VITE_AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
+            --build-arg VITE_AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }} .
+          docker build \
+            --build-arg VITE_MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
+            --build-arg VITE_MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
+            --build-arg VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+            --build-arg VITE_AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+            --build-arg VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+            --build-arg VITE_AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
+            --build-arg VITE_AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/web-app:latest .
           docker push ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }}
           docker push ${{ env.ACR_NAME }}.azurecr.io/web-app:latest
 

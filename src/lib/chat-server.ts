@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { createChatCompletion, isAPIConfigured, generateFallbackResponse, type ChatMessage } from './api'
+import { isMCPConfigured, createMCPChatCompletion } from './mcp-client'
 
 export interface ChatRequest {
   messages: ChatMessage[]
@@ -17,6 +18,23 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     try {
       const { messages, temperature, maxTokens, topP } = data
+
+      // Try MCP server first (works from both client and server)
+      if (isMCPConfigured()) {
+        try {
+          console.log('Using MCP server for chat completion')
+          const response = await createMCPChatCompletion({
+            messages,
+            temperature: temperature ?? 0.7,
+            maxTokens: maxTokens ?? 4096,
+            topP: topP ?? 1,
+          })
+          return response
+        } catch (mcpError) {
+          console.error('MCP server call failed:', mcpError)
+          // Fall through to direct API call
+        }
+      }
 
       // Check if API is configured
       if (!isAPIConfigured()) {
@@ -40,7 +58,7 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
         }
       }
 
-      // Call Azure OpenAI API
+      // Call Azure OpenAI API directly (server-side only)
       const response = await createChatCompletion({
         messages,
         temperature: temperature ?? 0.7,
@@ -52,19 +70,14 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
     } catch (error) {
       console.error('Error in chat server function:', error)
       
-      // Log detailed Azure Content Safety information if available
+      // Log detailed error information
       if (error && typeof error === 'object') {
         const azureError = error as any
-        if (azureError.code === 'content_filter' || azureError.error?.code === 'content_filter') {
-          console.log('Azure Content Safety Details:', {
-            requestId: azureError.headers?.get?.('apim-request-id'),
-            code: azureError.code,
-            innerCode: azureError.error?.innererror?.code,
-            deployment: azureError.headers?.get?.('x-ms-deployment-name'),
-            region: azureError.headers?.get?.('x-ms-region'),
-            raiInvoked: azureError.headers?.get?.('x-ms-rai-invoked'),
-          })
-        }
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown',
+          code: azureError.code,
+          status: azureError.status,
+        })
       }
       
       throw new Error(

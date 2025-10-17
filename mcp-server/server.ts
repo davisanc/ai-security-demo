@@ -96,9 +96,16 @@ function detectThreats(content: string) {
 // Main chat endpoint
 app.post('/api/chat', async (req, res) => {
   try {
+    console.log('Received chat request:', {
+      origin: req.headers.origin,
+      timestamp: new Date().toISOString(),
+      hasMessages: !!req.body?.messages
+    })
+
     const { messages, temperature = 0.7, maxTokens = 500, enableContentSafety = true, enableThreatDetection = true } = req.body
 
     if (!messages || !Array.isArray(messages)) {
+      console.error('Invalid request: messages array missing')
       return res.status(400).json({ error: 'Invalid request: messages array required' })
     }
 
@@ -167,11 +174,24 @@ app.post('/api/chat', async (req, res) => {
 
   } catch (error) {
     console.error('Error calling Azure OpenAI:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'
     })
   }
+})
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: err.message 
+  })
 })
 
 app.listen(PORT, () => {

@@ -8,7 +8,7 @@ const MCP_API_KEY = import.meta.env.VITE_MCP_API_KEY
  * Check if MCP server is configured
  */
 export function isMCPConfigured(): boolean {
-  return Boolean(MCP_SERVER_ENDPOINT && MCP_API_KEY)
+  return Boolean(MCP_SERVER_ENDPOINT)
 }
 
 /**
@@ -17,17 +17,23 @@ export function isMCPConfigured(): boolean {
 export async function createMCPChatCompletion(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
-  if (!MCP_SERVER_ENDPOINT || !MCP_API_KEY) {
+  if (!MCP_SERVER_ENDPOINT) {
     throw new Error('MCP server is not configured')
   }
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    
+    // Add API key if available
+    if (MCP_API_KEY) {
+      headers['Authorization'] = `Bearer ${MCP_API_KEY}`
+    }
+
     const response = await fetch(`${MCP_SERVER_ENDPOINT}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MCP_API_KEY}`,
-      },
+      headers,
       body: JSON.stringify({
         messages: request.messages,
         temperature: request.temperature,
@@ -57,17 +63,23 @@ export async function createMCPChatCompletion(
 export async function* streamMCPChatCompletion(
   request: ChatCompletionRequest
 ): AsyncGenerator<string, void, unknown> {
-  if (!MCP_SERVER_ENDPOINT || !MCP_API_KEY) {
+  if (!MCP_SERVER_ENDPOINT) {
     throw new Error('MCP server is not configured')
   }
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    
+    // Add API key if available
+    if (MCP_API_KEY) {
+      headers['Authorization'] = `Bearer ${MCP_API_KEY}`
+    }
+
     const response = await fetch(`${MCP_SERVER_ENDPOINT}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MCP_API_KEY}`,
-      },
+      headers,
       body: JSON.stringify({
         messages: request.messages,
         temperature: request.temperature,

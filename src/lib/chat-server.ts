@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { createChatCompletion, isAPIConfigured, generateFallbackResponse, type ChatMessage } from './api'
-import { isMCPConfigured, createMCPChatCompletion } from './mcp-client'
+// import { isMCPConfigured, createMCPChatCompletion } from './mcp-client' // Disabled for now - testing direct connection
 
 export interface ChatRequest {
   messages: ChatMessage[]
@@ -21,33 +21,35 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
 
       console.log('Chat server function called', {
         messageCount: messages.length,
-        isMCPConfigured: isMCPConfigured(),
-        mcpEndpoint: process.env.MCP_SERVER_ENDPOINT || 'not set',
-        viteEndpoint: process.env.VITE_MCP_SERVER_ENDPOINT || 'not set (should be runtime only)',
-        isAPIConfigured: isAPIConfigured()
+        isAPIConfigured: isAPIConfigured(),
+        azureEndpoint: process.env.AZURE_OPENAI_ENDPOINT || 'not set',
+        azureDeployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'not set',
+        hasApiKey: !!process.env.AZURE_OPENAI_API_KEY
       })
 
-      // Try MCP server first (works from both client and server)
-      if (isMCPConfigured()) {
-        try {
-          console.log('Attempting MCP server call')
-          const response = await createMCPChatCompletion({
-            messages,
-            temperature: temperature ?? 0.7,
-            maxTokens: maxTokens ?? 4096,
-            topP: topP ?? 1,
-          })
-          console.log('MCP server call successful')
-          return response
-        } catch (mcpError) {
-          console.error('MCP server call failed:', mcpError)
-          console.error('MCP error details:', {
-            message: mcpError instanceof Error ? mcpError.message : 'Unknown',
-            stack: mcpError instanceof Error ? mcpError.stack : undefined
-          })
-          // Fall through to direct API call
-        }
-      }
+      // Skip MCP server for now - connect directly to Azure OpenAI
+      // TODO: Re-enable MCP server once direct connection is working
+      // if (isMCPConfigured()) {
+      //   try {
+      //     console.log('Attempting MCP server call')
+      //     const response = await createMCPChatCompletion({
+      //       messages,
+      //       temperature: temperature ?? 0.7,
+      //       maxTokens: maxTokens ?? 4096,
+      //       topP: topP ?? 1,
+      //     })
+      //     console.log('MCP server call successful', { response })
+      //     return response
+      //   } catch (mcpError) {
+      //     console.error('MCP server call failed:', mcpError)
+      //     console.error('MCP error details:', {
+      //       message: mcpError instanceof Error ? mcpError.message : 'Unknown',
+      //       stack: mcpError instanceof Error ? mcpError.stack : undefined,
+      //       error: mcpError
+      //     })
+      //     // Fall through to direct API call
+      //   }
+      // }
 
       // Check if API is configured
       if (!isAPIConfigured()) {

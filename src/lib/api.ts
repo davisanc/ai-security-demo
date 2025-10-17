@@ -32,15 +32,34 @@ export interface ChatCompletionResponse {
 }
 
 /**
+ * Get environment variable that works in both browser and server
+ */
+function getEnvVar(name: string): string | undefined {
+  // Check if we're in a browser environment with Vite
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    const viteValue = import.meta.env[`VITE_${name}`]
+    if (viteValue) return viteValue
+  }
+  
+  // Check if we're in Node.js server environment
+  if (typeof process !== 'undefined' && process.env) {
+    const nodeValue = process.env[name]
+    if (nodeValue) return nodeValue
+  }
+  
+  return undefined
+}
+
+/**
  * Get Azure OpenAI configuration from environment variables
  */
 function getAzureOpenAIConfig() {
   return {
-    endpoint: import.meta.env.VITE_AZURE_OPENAI_ENDPOINT,
-    apiKey: import.meta.env.VITE_AZURE_OPENAI_API_KEY,
-    deployment: import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT,
-    modelName: import.meta.env.VITE_AZURE_OPENAI_MODEL,
-    apiVersion: import.meta.env.VITE_AZURE_OPENAI_API_VERSION || '2024-04-01-preview',
+    endpoint: getEnvVar('AZURE_OPENAI_ENDPOINT'),
+    apiKey: getEnvVar('AZURE_OPENAI_API_KEY'),
+    deployment: getEnvVar('AZURE_OPENAI_DEPLOYMENT'),
+    modelName: getEnvVar('AZURE_OPENAI_MODEL'),
+    apiVersion: getEnvVar('AZURE_OPENAI_API_VERSION') || '2024-04-01-preview',
   }
 }
 
@@ -87,7 +106,7 @@ export async function createChatCompletion(
   try {
     const response = await client.chat.completions.create({
       messages: request.messages,
-      model: config.modelName,
+      model: config.modelName || 'gpt-4o-mini',
       temperature: request.temperature ?? 0.7,
       max_tokens: request.maxTokens ?? 4096,
       top_p: request.topP ?? 1,
@@ -147,7 +166,7 @@ export async function* streamChatCompletion(
   try {
     const stream = await client.chat.completions.create({
       messages: request.messages,
-      model: config.modelName,
+      model: config.modelName || 'gpt-4o-mini',
       temperature: request.temperature ?? 0.7,
       max_tokens: request.maxTokens ?? 4096,
       stream: true,
@@ -192,7 +211,7 @@ export function isAPIConfigured(): boolean {
 /**
  * Generate a fallback response when no backend is configured
  */
-export function generateFallbackResponse(userMessage: string, context?: string): ChatMessage {
+export function generateFallbackResponse(userMessage: string, _context?: string): ChatMessage {
   // Analyze the message for common patterns
   const lowerMessage = userMessage.toLowerCase()
   

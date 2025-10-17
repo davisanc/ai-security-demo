@@ -19,19 +19,31 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
     try {
       const { messages, temperature, maxTokens, topP } = data
 
+      console.log('Chat server function called', {
+        messageCount: messages.length,
+        isMCPConfigured: isMCPConfigured(),
+        mcpEndpoint: process.env.VITE_MCP_SERVER_ENDPOINT || 'not set',
+        isAPIConfigured: isAPIConfigured()
+      })
+
       // Try MCP server first (works from both client and server)
       if (isMCPConfigured()) {
         try {
-          console.log('Using MCP server for chat completion')
+          console.log('Attempting MCP server call')
           const response = await createMCPChatCompletion({
             messages,
             temperature: temperature ?? 0.7,
             maxTokens: maxTokens ?? 4096,
             topP: topP ?? 1,
           })
+          console.log('MCP server call successful')
           return response
         } catch (mcpError) {
           console.error('MCP server call failed:', mcpError)
+          console.error('MCP error details:', {
+            message: mcpError instanceof Error ? mcpError.message : 'Unknown',
+            stack: mcpError instanceof Error ? mcpError.stack : undefined
+          })
           // Fall through to direct API call
         }
       }

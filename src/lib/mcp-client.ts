@@ -31,6 +31,12 @@ export async function createMCPChatCompletion(
       headers['Authorization'] = `Bearer ${MCP_API_KEY}`
     }
 
+    console.log('Calling MCP server:', {
+      endpoint: MCP_SERVER_ENDPOINT,
+      hasApiKey: !!MCP_API_KEY,
+      messageCount: request.messages.length
+    })
+
     const response = await fetch(`${MCP_SERVER_ENDPOINT}/api/chat`, {
       method: 'POST',
       headers,
@@ -44,15 +50,29 @@ export async function createMCPChatCompletion(
       }),
     })
 
+    console.log('MCP server response status:', response.status)
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-      throw new Error(`MCP server error: ${response.status} - ${errorData.error || 'Unknown error'}`)
+      const errorText = await response.text()
+      console.error('MCP server error response:', errorText)
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { error: errorText }
+      }
+      throw new Error(`MCP server error: ${response.status} - ${errorData.error || errorText || 'Unknown error'}`)
     }
 
     const data = await response.json()
+    console.log('MCP server success:', { hasChoices: !!data.choices })
     return data
   } catch (error) {
     console.error('Error calling MCP server:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown',
+      endpoint: MCP_SERVER_ENDPOINT
+    })
     throw error
   }
 }

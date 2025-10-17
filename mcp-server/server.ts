@@ -140,13 +140,29 @@ app.post('/api/chat', async (req, res) => {
       max_tokens: maxTokens
     })
 
-    const content = completion.choices[0]?.message?.content || 'No response generated'
-
+    // Return in OpenAI-compatible format
     res.json({
-      content,
-      safetyAnalysis,
-      threatDetection,
-      usage: completion.usage
+      id: completion.id,
+      created: completion.created,
+      model: completion.model,
+      choices: completion.choices.map((choice) => ({
+        index: choice.index,
+        message: {
+          role: choice.message.role,
+          content: choice.message.content || '',
+        },
+        finishReason: choice.finish_reason || '',
+      })),
+      usage: completion.usage ? {
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+      } : undefined,
+      // Additional security metadata
+      _security: {
+        safetyAnalysis,
+        threatDetection
+      }
     })
 
   } catch (error) {

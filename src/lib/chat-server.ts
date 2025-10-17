@@ -22,7 +22,8 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
       console.log('Chat server function called', {
         messageCount: messages.length,
         isMCPConfigured: isMCPConfigured(),
-        mcpEndpoint: process.env.VITE_MCP_SERVER_ENDPOINT || 'not set',
+        mcpEndpoint: process.env.MCP_SERVER_ENDPOINT || 'not set',
+        viteEndpoint: process.env.VITE_MCP_SERVER_ENDPOINT || 'not set (should be runtime only)',
         isAPIConfigured: isAPIConfigured()
       })
 

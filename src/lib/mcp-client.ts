@@ -2,13 +2,26 @@
 import type { ChatCompletionRequest, ChatCompletionResponse } from './api'
 
 // Support both build-time (browser) and runtime (server) environment variables
-const MCP_SERVER_ENDPOINT = typeof import.meta !== 'undefined' && import.meta.env
-  ? import.meta.env.VITE_MCP_SERVER_ENDPOINT 
-  : (typeof process !== 'undefined' && process.env ? process.env.MCP_SERVER_ENDPOINT : undefined)
+// In browser: import.meta.env.VITE_* is available
+// In Node.js server: process.env.* is available (without VITE_ prefix)
+function getEnvVar(name: string): string | undefined {
+  // Check if we're in a browser environment with Vite
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    const viteValue = import.meta.env[`VITE_${name}`]
+    if (viteValue) return viteValue
+  }
+  
+  // Check if we're in Node.js server environment
+  if (typeof process !== 'undefined' && process.env) {
+    const nodeValue = process.env[name]
+    if (nodeValue) return nodeValue
+  }
+  
+  return undefined
+}
 
-const MCP_API_KEY = typeof import.meta !== 'undefined' && import.meta.env
-  ? import.meta.env.VITE_MCP_API_KEY
-  : (typeof process !== 'undefined' && process.env ? process.env.MCP_API_KEY : undefined)
+const MCP_SERVER_ENDPOINT = getEnvVar('MCP_SERVER_ENDPOINT')
+const MCP_API_KEY = getEnvVar('MCP_API_KEY')
 
 /**
  * Check if MCP server is configured

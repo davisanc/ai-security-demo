@@ -63,11 +63,24 @@ export function createAzureOpenAIClient(): AzureOpenAI {
 }
 
 /**
- * Send a chat completion request to Azure OpenAI
+ * Send a chat completion request to Azure OpenAI (via MCP server for security)
  */
 export async function createChatCompletion(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
+  // Try to use MCP server first (more secure, has content safety and threat detection)
+  const { isMCPConfigured, createMCPChatCompletion } = await import('./mcp-client')
+  
+  if (isMCPConfigured()) {
+    try {
+      return await createMCPChatCompletion(request)
+    } catch (error) {
+      console.warn('MCP server call failed, falling back to direct Azure OpenAI:', error)
+      // Fall through to direct Azure OpenAI call
+    }
+  }
+
+  // Fallback to direct Azure OpenAI (only works server-side due to CORS)
   const client = createAzureOpenAIClient()
   const config = getAzureOpenAIConfig()
 
@@ -109,11 +122,25 @@ export async function createChatCompletion(
 }
 
 /**
- * Stream chat completions from Azure OpenAI (for real-time responses)
+ * Stream chat completions from Azure OpenAI (via MCP server for security)
  */
 export async function* streamChatCompletion(
   request: ChatCompletionRequest
 ): AsyncGenerator<string, void, unknown> {
+  // Try to use MCP server first (more secure, has content safety and threat detection)
+  const { isMCPConfigured, streamMCPChatCompletion } = await import('./mcp-client')
+  
+  if (isMCPConfigured()) {
+    try {
+      yield* streamMCPChatCompletion(request)
+      return
+    } catch (error) {
+      console.warn('MCP server streaming failed, falling back to direct Azure OpenAI:', error)
+      // Fall through to direct Azure OpenAI call
+    }
+  }
+
+  // Fallback to direct Azure OpenAI (only works server-side due to CORS)
   const client = createAzureOpenAIClient()
   const config = getAzureOpenAIConfig()
 

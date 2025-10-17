@@ -1,8 +1,14 @@
 // MCP Server client for secure AI interactions
 import type { ChatCompletionRequest, ChatCompletionResponse } from './api'
 
-const MCP_SERVER_ENDPOINT = import.meta.env.VITE_MCP_SERVER_ENDPOINT
-const MCP_API_KEY = import.meta.env.VITE_MCP_API_KEY
+// Support both build-time (browser) and runtime (server) environment variables
+const MCP_SERVER_ENDPOINT = typeof import.meta !== 'undefined' && import.meta.env
+  ? import.meta.env.VITE_MCP_SERVER_ENDPOINT 
+  : (typeof process !== 'undefined' && process.env ? process.env.MCP_SERVER_ENDPOINT : undefined)
+
+const MCP_API_KEY = typeof import.meta !== 'undefined' && import.meta.env
+  ? import.meta.env.VITE_MCP_API_KEY
+  : (typeof process !== 'undefined' && process.env ? process.env.MCP_API_KEY : undefined)
 
 /**
  * Check if MCP server is configured

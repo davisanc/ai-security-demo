@@ -263,12 +263,19 @@ jobs:
               --image ${{ env.ACR_NAME }}.azurecr.io/web-app:${{ github.sha }} \
               --set-env-vars \
                 VITE_MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
+                MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
                 VITE_MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
+                MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
                 VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+                AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
                 VITE_AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+                AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
                 VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
                 VITE_AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
+                AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
                 VITE_AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
                 NODE_ENV=production \
                 PORT=3000
           else
@@ -289,12 +296,19 @@ jobs:
               --registry-password ${{ steps.acr-creds.outputs.password }} \
               --env-vars \
                 VITE_MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
+                MCP_SERVER_ENDPOINT=${{ needs.deploy-mcp-server.outputs.mcp-server-url }} \
                 VITE_MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
+                MCP_API_KEY=${{ secrets.MCP_API_KEY }} \
                 VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+                AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
                 VITE_AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+                AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
                 VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
                 VITE_AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
+                AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }} \
                 VITE_AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+                AZURE_OPENAI_MODEL=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
                 NODE_ENV=production \
                 PORT=3000
           fi

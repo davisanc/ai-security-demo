@@ -24,6 +24,27 @@ const openai = new AzureOpenAI({
   apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-04-01-preview'
 })
 
+// Root endpoint - API information
+app.get('/', (req, res) => {
+  res.json({
+    name: 'MCP Server - AI Security Gateway',
+    version: '1.0.0',
+    status: 'running',
+    description: 'Secure AI inference gateway with content safety and threat detection',
+    endpoints: {
+      health: 'GET /health - Health check',
+      chat: 'POST /api/chat - Secure chat completions with Azure OpenAI'
+    },
+    features: [
+      'Content Safety Analysis',
+      'Threat Detection (Prompt Injection, Jailbreak)',
+      'Azure OpenAI Integration',
+      'CORS Protection'
+    ],
+    timestamp: new Date().toISOString()
+  })
+})
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() })

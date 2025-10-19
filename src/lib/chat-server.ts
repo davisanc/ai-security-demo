@@ -13,50 +13,17 @@ export interface ChatRequest {
  * Server function to handle chat completion requests
  * This runs on the server side, keeping API keys secure
  */
-export const sendChatMessage = createServerFn({ method: 'POST' })
-  .inputValidator((raw: any) => {
-    // Try to discover a messages array in a few common nesting patterns
-    const seen = new Set<any>()
-    const queue: any[] = [raw]
-    let found: any | undefined
-
-    const isMessagesContainer = (obj: any) => obj && Array.isArray(obj.messages)
-
-    while (queue.length && !found) {
-      const current = queue.shift()
-      if (!current || typeof current !== 'object') continue
-      if (seen.has(current)) continue
-      seen.add(current)
-      if (isMessagesContainer(current) && current.messages.length > 0) {
-        found = current
-        break
-      }
-      // Enqueue shallow child objects (max breadth, shallow depth)
-      for (const val of Object.values(current)) {
-        if (val && typeof val === 'object') queue.push(val)
-      }
-    }
-
-    if (!found) {
-      console.warn('Chat input normalization: no messages found, raw snapshot:',
-        (() => { try { return JSON.stringify(raw)?.slice(0,500) } catch { return '[unserializable]' } })()
-      )
-      return { messages: [], temperature: 0.7, maxTokens: 256, topP: 1 }
-    }
-
-    return {
-      messages: found.messages,
-      temperature: found.temperature,
-      maxTokens: found.maxTokens,
-      topP: found.topP,
-    } as ChatRequest
-  })
-  .handler(async ({ data }) => {
+export const sendChatMessage = createServerFn({ method: 'POST' }).handler(async (ctx) => {
     try {
+      // TanStack Start passes context with data property
+      console.log('Chat server function called with ctx:', JSON.stringify(ctx)?.slice(0, 500))
+      
+      // Extract data from context
+      const data = (ctx as any) as ChatRequest
       const { messages, temperature, maxTokens, topP } = data
 
-      if (!messages || messages.length === 0) {
-        console.error('Rejecting empty messages array after normalization.')
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        console.error('Invalid or empty messages array:', { messages, ctxKeys: Object.keys(ctx || {}), ctx })
         return {
           choices: [
             {

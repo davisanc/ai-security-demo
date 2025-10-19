@@ -58,7 +58,6 @@ function getAzureOpenAIConfig() {
     endpoint: getEnvVar('AZURE_OPENAI_ENDPOINT'),
     apiKey: getEnvVar('AZURE_OPENAI_API_KEY'),
     deployment: getEnvVar('AZURE_OPENAI_DEPLOYMENT'),
-    modelName: getEnvVar('AZURE_OPENAI_MODEL'),
     apiVersion: getEnvVar('AZURE_OPENAI_API_VERSION') || '2024-04-01-preview',
   }
 }
@@ -68,8 +67,8 @@ function getAzureOpenAIConfig() {
  */
 export function createAzureOpenAIClient(): AzureOpenAI {
   const config = getAzureOpenAIConfig()
-  
-  if (!config.endpoint || !config.apiKey) {
+
+  if (!config.endpoint || !config.apiKey || !config.deployment) {
     throw new Error('Azure OpenAI configuration is missing. Please check your .env file.')
   }
 
@@ -80,11 +79,11 @@ export function createAzureOpenAIClient(): AzureOpenAI {
     deployment: config.deployment
   })
 
-  // Azure OpenAI SDK expects endpoint, apiKey, and apiVersion
-  // deployment is used in the chat.completions.create() call, not in the constructor
+  // AzureOpenAI wrapper needs the deployment for base URL resolution
   return new AzureOpenAI({
     endpoint: config.endpoint,
     apiKey: config.apiKey,
+    deployment: config.deployment,
     apiVersion: config.apiVersion,
   })
 }
@@ -95,34 +94,22 @@ export function createAzureOpenAIClient(): AzureOpenAI {
 export async function createChatCompletion(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
-  // Try to use MCP server first (more secure, has content safety and threat detection)
-  const { isMCPConfigured, createMCPChatCompletion } = await import('./mcp-client')
-  
-  if (isMCPConfigured()) {
-    try {
-      return await createMCPChatCompletion(request)
-    } catch (error) {
-      console.warn('MCP server call failed, falling back to direct Azure OpenAI:', error)
-      // Fall through to direct Azure OpenAI call
-    }
-  }
-
-  // Fallback to direct Azure OpenAI (only works server-side due to CORS)
+  // Direct call to Azure OpenAI only (MCP bypassed for now)
   const client = createAzureOpenAIClient()
   const config = getAzureOpenAIConfig()
 
-  console.log('Calling Azure OpenAI with config:', {
+  console.log('Calling Azure OpenAI (chat completion)', {
     deployment: config.deployment,
     messageCount: request.messages.length
   })
 
   try {
-    // For Azure OpenAI, the deployment name goes in the 'model' field
+    // For AzureOpenAI wrapper the deployment is already configured; no need to pass model.
     const response = await client.chat.completions.create({
+      model: config.deployment!,
       messages: request.messages,
-      model: config.deployment || 'gpt-4o-mini',
       temperature: request.temperature ?? 0.7,
-      max_tokens: request.maxTokens ?? 4096,
+      max_tokens: request.maxTokens ?? 1024,
       top_p: request.topP ?? 1,
       frequency_penalty: request.frequencyPenalty ?? 0,
       presence_penalty: request.presencePenalty ?? 0,
@@ -160,29 +147,18 @@ export async function createChatCompletion(
 export async function* streamChatCompletion(
   request: ChatCompletionRequest
 ): AsyncGenerator<string, void, unknown> {
-  // Try to use MCP server first (more secure, has content safety and threat detection)
-  const { isMCPConfigured, streamMCPChatCompletion } = await import('./mcp-client')
-  
-  if (isMCPConfigured()) {
-    try {
-      yield* streamMCPChatCompletion(request)
-      return
-    } catch (error) {
-      console.warn('MCP server streaming failed, falling back to direct Azure OpenAI:', error)
-      // Fall through to direct Azure OpenAI call
-    }
-  }
-
-  // Fallback to direct Azure OpenAI (only works server-side due to CORS)
+  // Direct streaming from Azure OpenAI (MCP bypassed)
   const client = createAzureOpenAIClient()
   const config = getAzureOpenAIConfig()
 
+  console.log('Starting Azure OpenAI stream', { deployment: config.deployment })
+
   try {
     const stream = await client.chat.completions.create({
+      model: config.deployment!,
       messages: request.messages,
-      model: config.deployment || 'gpt-4o-mini',
       temperature: request.temperature ?? 0.7,
-      max_tokens: request.maxTokens ?? 4096,
+      max_tokens: request.maxTokens ?? 512,
       stream: true,
     })
 

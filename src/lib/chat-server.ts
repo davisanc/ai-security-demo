@@ -14,7 +14,20 @@ export interface ChatRequest {
  * This runs on the server side, keeping API keys secure
  */
 export const sendChatMessage = createServerFn({ method: 'POST' })
-  .inputValidator((data: ChatRequest) => data)
+  .inputValidator((raw: any) => {
+    // Accept either direct ChatRequest or wrapped { data: ChatRequest }
+    const candidate = raw?.messages ? raw : raw?.data?.messages ? raw.data : undefined
+    if (!candidate || !Array.isArray(candidate.messages)) {
+      console.error('Invalid chat request shape received:', raw)
+      return { messages: [], temperature: 0.7, maxTokens: 256, topP: 1 }
+    }
+    return {
+      messages: candidate.messages,
+      temperature: candidate.temperature,
+      maxTokens: candidate.maxTokens,
+      topP: candidate.topP,
+    } as ChatRequest
+  })
   .handler(async ({ data }) => {
     try {
       const { messages, temperature, maxTokens, topP } = data

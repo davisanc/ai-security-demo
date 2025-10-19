@@ -104,7 +104,7 @@ export async function createChatCompletion(
   })
 
   try {
-    // For AzureOpenAI wrapper the deployment is already configured; no need to pass model.
+    // Primary path: SDK
     const response = await client.chat.completions.create({
       model: config.deployment!,
       messages: request.messages,
@@ -136,8 +136,54 @@ export async function createChatCompletion(
         : undefined,
     }
   } catch (error) {
-    console.error('Error calling Azure OpenAI API:', error)
-    throw error
+    console.error('SDK chat.completions.create failed – attempting raw REST fallback:', error)
+    // Raw REST fallback (Azure pattern)
+    try {
+      const url = `${config.endpoint}/openai/deployments/${config.deployment}/chat/completions?api-version=${config.apiVersion}`
+      const body = {
+        messages: request.messages,
+        temperature: request.temperature ?? 0.7,
+        max_tokens: request.maxTokens ?? 1024,
+        top_p: request.topP ?? 1,
+      }
+      console.log('RAW Azure REST call', { url, body })
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': config.apiKey!,
+        },
+        body: JSON.stringify(body)
+      })
+      const text = await resp.text()
+      console.log('RAW Azure REST status/text', resp.status, text.slice(0, 300))
+      if (!resp.ok) {
+        throw new Error(`Azure REST error ${resp.status}: ${text}`)
+      }
+      let json: any
+      try { json = JSON.parse(text) } catch (e) { throw new Error('Invalid JSON from Azure REST: ' + text) }
+      return {
+        id: json.id || 'raw-' + Date.now(),
+        created: json.created || Date.now(),
+        model: json.model || config.deployment!,
+        choices: (json.choices || []).map((c: any, i: number) => ({
+          index: c.index ?? i,
+          message: {
+            role: c.message?.role || 'assistant',
+            content: c.message?.content || c.delta?.content || ''
+          },
+          finishReason: c.finish_reason || 'stop'
+        })),
+        usage: json.usage ? {
+          promptTokens: json.usage.prompt_tokens,
+          completionTokens: json.usage.completion_tokens,
+          totalTokens: json.usage.total_tokens,
+        } : undefined
+      }
+    } catch (rawErr) {
+      console.error('Raw REST fallback failed:', rawErr)
+      throw rawErr
+    }
   }
 }
 
@@ -169,8 +215,34 @@ export async function* streamChatCompletion(
       }
     }
   } catch (error) {
-    console.error('Error streaming from Azure OpenAI API:', error)
-    throw error
+    console.error('SDK streaming failed – attempting raw REST stream fallback:', error)
+    // Minimal streaming fallback (non-incremental: single response)
+    try {
+      const url = `${config.endpoint}/openai/deployments/${config.deployment}/chat/completions?api-version=${config.apiVersion}`
+      const body = {
+        messages: request.messages,
+        temperature: request.temperature ?? 0.7,
+        max_tokens: request.maxTokens ?? 512,
+      }
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': config.apiKey!,
+        },
+        body: JSON.stringify(body)
+      })
+      const text = await resp.text()
+      if (!resp.ok) throw new Error(`Azure REST stream fallback error ${resp.status}: ${text}`)
+      let json: any
+      try { json = JSON.parse(text) } catch (e) { throw new Error('Invalid JSON from Azure REST stream fallback: ' + text) }
+      const content = json.choices?.[0]?.message?.content || ''
+      if (content) yield content
+      return
+    } catch (rawStreamErr) {
+      console.error('Raw REST streaming fallback failed:', rawStreamErr)
+      throw rawStreamErr
+    }
   }
 }
 

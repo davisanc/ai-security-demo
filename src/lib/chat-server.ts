@@ -15,22 +15,64 @@ export interface ChatRequest {
  */
 export const sendChatMessage = createServerFn({ method: 'POST' })
   .inputValidator((raw: any) => {
-    // Accept either direct ChatRequest or wrapped { data: ChatRequest }
-    const candidate = raw?.messages ? raw : raw?.data?.messages ? raw.data : undefined
-    if (!candidate || !Array.isArray(candidate.messages)) {
-      console.error('Invalid chat request shape received:', raw)
+    // Try to discover a messages array in a few common nesting patterns
+    const seen = new Set<any>()
+    const queue: any[] = [raw]
+    let found: any | undefined
+
+    const isMessagesContainer = (obj: any) => obj && Array.isArray(obj.messages)
+
+    while (queue.length && !found) {
+      const current = queue.shift()
+      if (!current || typeof current !== 'object') continue
+      if (seen.has(current)) continue
+      seen.add(current)
+      if (isMessagesContainer(current) && current.messages.length > 0) {
+        found = current
+        break
+      }
+      // Enqueue shallow child objects (max breadth, shallow depth)
+      for (const val of Object.values(current)) {
+        if (val && typeof val === 'object') queue.push(val)
+      }
+    }
+
+    if (!found) {
+      console.warn('Chat input normalization: no messages found, raw snapshot:',
+        (() => { try { return JSON.stringify(raw)?.slice(0,500) } catch { return '[unserializable]' } })()
+      )
       return { messages: [], temperature: 0.7, maxTokens: 256, topP: 1 }
     }
+
     return {
-      messages: candidate.messages,
-      temperature: candidate.temperature,
-      maxTokens: candidate.maxTokens,
-      topP: candidate.topP,
+      messages: found.messages,
+      temperature: found.temperature,
+      maxTokens: found.maxTokens,
+      topP: found.topP,
     } as ChatRequest
   })
   .handler(async ({ data }) => {
     try {
       const { messages, temperature, maxTokens, topP } = data
+
+      if (!messages || messages.length === 0) {
+        console.error('Rejecting empty messages array after normalization.')
+        return {
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: 'assistant',
+                content: 'Input validation failed: messages array is empty or missing.'
+              },
+              finishReason: 'stop'
+            }
+          ],
+          id: 'validation-' + Date.now(),
+          created: Date.now(),
+          model: 'validation'
+        }
+      }
 
       console.log('Chat server function called', {
         messageCount: messages.length,

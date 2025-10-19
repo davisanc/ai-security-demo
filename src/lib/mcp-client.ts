@@ -71,19 +71,27 @@ export async function createMCPChatCompletion(
 
     console.log('MCP server response status:', response.status)
 
+    const responseText = await response.text();
+    console.log('MCP server raw response:', responseText);
+
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('MCP server error response:', errorText)
+      console.error('MCP server error response:', responseText)
       let errorData
       try {
-        errorData = JSON.parse(errorText)
+        errorData = JSON.parse(responseText)
       } catch {
-        errorData = { error: errorText }
+        errorData = { error: responseText }
       }
-      throw new Error(`MCP server error: ${response.status} - ${errorData.error || errorText || 'Unknown error'}`)
+      throw new Error(`MCP server error: ${response.status} - ${errorData.error || responseText || 'Unknown error'}`)
     }
 
-    const data = await response.json()
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (parseErr) {
+      console.error('Failed to parse MCP server response as JSON:', parseErr)
+      throw new Error('Invalid JSON from MCP server: ' + responseText)
+    }
     console.log('MCP server success:', { hasChoices: !!data.choices })
     return data
   } catch (error) {

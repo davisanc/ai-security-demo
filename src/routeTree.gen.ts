@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ThreatProtectionRouteImport } from './routes/threat-protection'
 import { Route as TestAzureOpenaiRouteImport } from './routes/test-azure-openai'
 import { Route as IdentityAccessRouteImport } from './routes/identity-access'
+import { Route as DebugRouteImport } from './routes/debug'
 import { Route as DataSecurityRouteImport } from './routes/data-security'
 import { Route as ComplianceRouteImport } from './routes/compliance'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,6 +30,11 @@ const TestAzureOpenaiRoute = TestAzureOpenaiRouteImport.update({
 const IdentityAccessRoute = IdentityAccessRouteImport.update({
   id: '/identity-access',
   path: '/identity-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugRoute = DebugRouteImport.update({
+  id: '/debug',
+  path: '/debug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataSecurityRoute = DataSecurityRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compliance': typeof ComplianceRoute
   '/data-security': typeof DataSecurityRoute
+  '/debug': typeof DebugRoute
   '/identity-access': typeof IdentityAccessRoute
   '/test-azure-openai': typeof TestAzureOpenaiRoute
   '/threat-protection': typeof ThreatProtectionRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compliance': typeof ComplianceRoute
   '/data-security': typeof DataSecurityRoute
+  '/debug': typeof DebugRoute
   '/identity-access': typeof IdentityAccessRoute
   '/test-azure-openai': typeof TestAzureOpenaiRoute
   '/threat-protection': typeof ThreatProtectionRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/compliance': typeof ComplianceRoute
   '/data-security': typeof DataSecurityRoute
+  '/debug': typeof DebugRoute
   '/identity-access': typeof IdentityAccessRoute
   '/test-azure-openai': typeof TestAzureOpenaiRoute
   '/threat-protection': typeof ThreatProtectionRoute
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/compliance'
     | '/data-security'
+    | '/debug'
     | '/identity-access'
     | '/test-azure-openai'
     | '/threat-protection'
@@ -86,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/compliance'
     | '/data-security'
+    | '/debug'
     | '/identity-access'
     | '/test-azure-openai'
     | '/threat-protection'
@@ -94,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/compliance'
     | '/data-security'
+    | '/debug'
     | '/identity-access'
     | '/test-azure-openai'
     | '/threat-protection'
@@ -103,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComplianceRoute: typeof ComplianceRoute
   DataSecurityRoute: typeof DataSecurityRoute
+  DebugRoute: typeof DebugRoute
   IdentityAccessRoute: typeof IdentityAccessRoute
   TestAzureOpenaiRoute: typeof TestAzureOpenaiRoute
   ThreatProtectionRoute: typeof ThreatProtectionRoute
@@ -129,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/identity-access'
       fullPath: '/identity-access'
       preLoaderRoute: typeof IdentityAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug': {
+      id: '/debug'
+      path: '/debug'
+      fullPath: '/debug'
+      preLoaderRoute: typeof DebugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data-security': {
@@ -159,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComplianceRoute: ComplianceRoute,
   DataSecurityRoute: DataSecurityRoute,
+  DebugRoute: DebugRoute,
   IdentityAccessRoute: IdentityAccessRoute,
   TestAzureOpenaiRoute: TestAzureOpenaiRoute,
   ThreatProtectionRoute: ThreatProtectionRoute,

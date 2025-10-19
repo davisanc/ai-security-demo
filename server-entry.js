@@ -51,7 +51,19 @@ const server = createServer(async (req, res) => {
       }
     }
 
-    // Create a Request object from the incoming request
+    // Read request body if present
+    let requestBody = undefined
+    if (req.method && !['GET', 'HEAD'].includes(req.method)) {
+      const chunks = []
+      for await (const chunk of req) {
+        chunks.push(chunk)
+      }
+      if (chunks.length) {
+        requestBody = Buffer.concat(chunks)
+      }
+    }
+
+    // Create a Request object from the incoming request (include body for POST/PUT/PATCH/DELETE)
     const request = new Request(url, {
       method: req.method,
       headers: Object.fromEntries(
@@ -60,6 +72,7 @@ const server = createServer(async (req, res) => {
           Array.isArray(value) ? value.join(', ') : value || '',
         ])
       ),
+      body: requestBody,
     })
 
     // Call the TanStack Start server

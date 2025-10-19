@@ -15,15 +15,29 @@ export interface ChatRequest {
  */
 export const sendChatMessage = createServerFn({ method: 'POST' }).handler(async (ctx) => {
     try {
-      // TanStack Start passes context with data property
-      console.log('Chat server function called with ctx:', JSON.stringify(ctx)?.slice(0, 500))
+      // Read the request body from ctx.request
+      const request = (ctx as any).request as Request
+      if (!request) {
+        console.error('No request object in context')
+        throw new Error('Invalid server function call - no request')
+      }
+
+      // Parse JSON body
+      let data: ChatRequest
+      try {
+        const bodyText = await request.text()
+        console.log('Request body text:', bodyText)
+        data = JSON.parse(bodyText) as ChatRequest
+        console.log('Parsed chat request:', { messageCount: data.messages?.length, temperature: data.temperature })
+      } catch (parseError) {
+        console.error('Failed to parse request body:', parseError)
+        throw new Error('Invalid JSON in request body')
+      }
       
-      // Extract data from context
-      const data = (ctx as any) as ChatRequest
       const { messages, temperature, maxTokens, topP } = data
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        console.error('Invalid or empty messages array:', { messages, ctxKeys: Object.keys(ctx || {}), ctx })
+        console.error('Invalid or empty messages array:', { messages, hasData: !!data })
         return {
           choices: [
             {

@@ -69,14 +69,22 @@ function getAzureOpenAIConfig() {
 export function createAzureOpenAIClient(): AzureOpenAI {
   const config = getAzureOpenAIConfig()
   
-  if (!config.endpoint || !config.apiKey || !config.deployment) {
+  if (!config.endpoint || !config.apiKey) {
     throw new Error('Azure OpenAI configuration is missing. Please check your .env file.')
   }
 
+  console.log('Creating Azure OpenAI client with config:', {
+    endpoint: config.endpoint,
+    hasApiKey: !!config.apiKey,
+    apiVersion: config.apiVersion,
+    deployment: config.deployment
+  })
+
+  // Azure OpenAI SDK expects endpoint, apiKey, and apiVersion
+  // deployment is used in the chat.completions.create() call, not in the constructor
   return new AzureOpenAI({
     endpoint: config.endpoint,
     apiKey: config.apiKey,
-    deployment: config.deployment,
     apiVersion: config.apiVersion,
   })
 }
@@ -103,10 +111,16 @@ export async function createChatCompletion(
   const client = createAzureOpenAIClient()
   const config = getAzureOpenAIConfig()
 
+  console.log('Calling Azure OpenAI with config:', {
+    deployment: config.deployment,
+    messageCount: request.messages.length
+  })
+
   try {
+    // For Azure OpenAI, the deployment name goes in the 'model' field
     const response = await client.chat.completions.create({
       messages: request.messages,
-      model: config.modelName || 'gpt-4o-mini',
+      model: config.deployment || 'gpt-4o-mini',
       temperature: request.temperature ?? 0.7,
       max_tokens: request.maxTokens ?? 4096,
       top_p: request.topP ?? 1,
@@ -166,7 +180,7 @@ export async function* streamChatCompletion(
   try {
     const stream = await client.chat.completions.create({
       messages: request.messages,
-      model: config.modelName || 'gpt-4o-mini',
+      model: config.deployment || 'gpt-4o-mini',
       temperature: request.temperature ?? 0.7,
       max_tokens: request.maxTokens ?? 4096,
       stream: true,

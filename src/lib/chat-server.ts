@@ -17,19 +17,44 @@ export const sendChatMessage = createServerFn({
   method: 'POST',
 }).handler(async function(ctx: any) {
     try {
-      console.log('Handler ctx:', typeof ctx, Object.keys(ctx || {}))
+      console.log('=== FULL CTX DUMP ===')
+      console.log('ctx keys:', Object.keys(ctx || {}))
+      console.log('ctx.context:', JSON.stringify(ctx.context)?.slice(0, 300))
+      console.log('ctx.sendContext:', JSON.stringify(ctx.sendContext)?.slice(0, 300))
+      console.log('ctx.headers:', JSON.stringify(ctx.headers)?.slice(0, 300))
       
-      // Try the request.json() method (different from .text())
-      const request = ctx.request
-      let data: ChatRequest
+      // Check if data was already parsed and stored somewhere
+      let data: ChatRequest | null = null
       
-      try {
-        // Use json() method instead of text() + JSON.parse
-        data = await request.json() as ChatRequest
-        console.log('Parsed from request.json():', { messageCount: data?.messages?.length })
-      } catch (jsonError) {
-        console.error('request.json() failed:', jsonError)
-        throw new Error('Could not parse request body as JSON')
+      // Try every possible location
+      if (ctx.data) {
+        console.log('Found data in ctx.data')
+        data = ctx.data
+      } else if (ctx.body) {
+        console.log('Found data in ctx.body')
+        data = ctx.body
+      } else if (ctx.payload) {
+        console.log('Found data in ctx.payload')
+        data = ctx.payload
+      } else if (ctx.input) {
+        console.log('Found data in ctx.input')
+        data = ctx.input
+      } else if (ctx.context?.data) {
+        console.log('Found data in ctx.context.data')
+        data = ctx.context.data
+      } else if (ctx.sendContext?.data) {
+        console.log('Found data in ctx.sendContext.data')
+        data = ctx.sendContext.data
+      } else {
+        console.log('Data not found in any expected location - dumping full ctx')
+        console.log(JSON.stringify(ctx, null, 2)?.slice(0, 1000))
+        throw new Error('Cannot find request data in context')
+      }
+      
+      console.log('Using data from:', { hasMessages: !!data?.messages, messageCount: data?.messages?.length })
+      
+      if (!data) {
+        throw new Error('Data is null after checking all locations')
       }
       
       const { messages, temperature, maxTokens, topP } = data

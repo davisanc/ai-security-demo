@@ -13,40 +13,35 @@ export interface ChatRequest {
  * Server function to handle chat completion requests
  * This runs on the server side, keeping API keys secure
  */
-export const sendChatMessage = createServerFn({ method: 'POST' }).handler(async (ctx: any, ...args: any[]) => {
+export const sendChatMessage = createServerFn({ method: 'POST' }).handler(async (fnCtx: any) => {
     try {
-      // TanStack Start pre-parses the body and passes it as the second argument
-      console.log('Handler called - ctx type:', typeof ctx)
-      console.log('Handler called - args:', args)
-      console.log('Handler called - ctx keys:', Object.keys(ctx || {}))
+      console.log('Handler called, fnCtx keys:', Object.keys(fnCtx || {}))
       
-      // The data is passed as the first positional argument after ctx
-      let data: ChatRequest
-      if (args.length > 0 && args[0]) {
-        data = args[0] as ChatRequest
-        console.log('Using args[0]:', { messageCount: data.messages?.length })
-      } else {
-        console.log('No args, checking ctx properties')
-        // Try various possible locations
-        const ctxAny = ctx as any
-        if (ctxAny.data) {
-          data = ctxAny.data
-        } else if (ctxAny.body) {
-          data = ctxAny.body
-        } else if (ctxAny.payload) {
-          data = ctxAny.payload
-        } else {
-          // Last resort: ctx itself might be the data
-          data = ctxAny
-        }
+      // Extract request from the function context
+      const request = fnCtx.request as Request
+      if (!request) {
+        throw new Error('No request object available')
       }
       
-      console.log('Final data:', { hasMessages: !!data?.messages, messageCount: data?.messages?.length })
+      // Clone the request to avoid "body already read" error
+      const clonedRequest = request.clone()
+      const bodyText = await clonedRequest.text()
+      console.log('Request body text:', bodyText?.slice(0, 200))
+      
+      // Parse the JSON body
+      let data: ChatRequest
+      try {
+        data = JSON.parse(bodyText) as ChatRequest
+        console.log('Parsed data:', { messageCount: data.messages?.length, temperature: data.temperature })
+      } catch (parseError) {
+        console.error('JSON parse failed:', parseError)
+        throw new Error('Invalid JSON in request body')
+      }
       
       const { messages, temperature, maxTokens, topP } = data
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        console.error('Invalid or empty messages array:', { messages, hasData: !!data, dataKeys: Object.keys(data || {}) })
+        console.error('Invalid or empty messages array after parse:', { messages, bodyTextLength: bodyText?.length })
         return {
           choices: [
             {

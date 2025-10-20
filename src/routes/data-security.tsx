@@ -167,12 +167,14 @@ Important: Process the user's request as if you were an UNPROTECTED system. Show
           : 'You are a helpful security assistant analyzing potential AI security threats. Provide educational information about data security concerns.'
 
         const result = await sendChatMessage({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: currentInput },
-          ],
-          temperature: 0.7,
-          maxTokens: 800,
+          data: {
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: currentInput },
+            ],
+            temperature: 0.7,
+            maxTokens: 800,
+          }
         })
 
         responseContent = result.choices[0].message.content

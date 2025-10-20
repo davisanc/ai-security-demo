@@ -25,12 +25,14 @@ function TestAzureOpenAI() {
 
     try {
       const result = await sendChatMessage({
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant.' },
-          { role: 'user', content: input },
-        ],
-        temperature: 0.7,
-        maxTokens: 500,
+        data: {
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: input },
+          ],
+          temperature: 0.7,
+          maxTokens: 500,
+        }
       })
 
       setResponse(result.choices[0].message.content)

@@ -21,6 +21,46 @@ A comprehensive, interactive web application built with TanStack Start showcasin
 - **Styling**: Tailwind CSS
 - **TypeScript**: Full type safety
 
+### How TanStack Start Handles Chat Messages
+
+TanStack Start provides a full-stack React framework with **server functions** that enable secure, server-side API calls. When you type a message in the chat interfaces, here's what happens:
+
+1. **Client-Side (Browser)**: Your message is captured in React components (`data-security.tsx`, `threat-protection.tsx`) and sent to a server function:
+   ```typescript
+   const result = await sendChatMessage({
+     data: {  // Data wrapper required by TanStack
+       messages: [
+         { role: 'system', content: 'You are a security assistant...' },
+         { role: 'user', content: 'Your message here' }
+       ],
+       temperature: 0.7,
+       maxTokens: 800
+     }
+   })
+   ```
+
+2. **Server-Side Processing**: The `sendChatMessage` server function (defined in `src/lib/chat-server.ts`) runs **exclusively on the server**, keeping API keys secure:
+   ```typescript
+   export const sendChatMessage = createServerFn({ method: 'POST' })
+     .inputValidator((data: ChatRequest) => {
+       // TanStack automatically parses the JSON body and passes it here
+       return data
+     })
+     .handler(async ({ data }) => {
+       // Extract messages and call Azure OpenAI API
+       const { messages, temperature, maxTokens } = data
+       return await createChatCompletion({ messages, temperature, maxTokens })
+     })
+   ```
+
+3. **Key Benefits**:
+   - **Security**: API keys never leave the server - they're never sent to the browser
+   - **Automatic JSON Parsing**: TanStack Start pre-processes the request body during its internal middleware phase
+   - **Type Safety**: Full TypeScript support from client to server
+   - **No Manual API Routes**: Server functions act as RPC endpoints automatically
+
+4. **Why the `{ data: {...} }` Wrapper?**: TanStack Start's `inputValidator` expects the client to wrap payloads in a `data` object. The validator receives the pre-parsed JSON body (since TanStack already consumed the request stream) and passes it to the handler function. This pattern ensures type safety and validation before your business logic executes.
+
 ## 🚀 Getting Started
 
 ### Prerequisites

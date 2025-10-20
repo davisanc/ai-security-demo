@@ -10,38 +10,32 @@ export interface ChatRequest {
 }
 
 /**
- * Server function to handle chat completion requests
+ * Server function to handle chat completion requests  
  * This runs on the server side, keeping API keys secure
  */
-export const sendChatMessage = createServerFn({ method: 'POST' }).handler(async (fnCtx: any) => {
+export const sendChatMessage = createServerFn({
+  method: 'POST',
+}).handler(async function(ctx: any) {
     try {
-      console.log('Handler called, fnCtx keys:', Object.keys(fnCtx || {}))
+      console.log('Handler ctx:', typeof ctx, Object.keys(ctx || {}))
       
-      // Extract request from the function context
-      const request = fnCtx.request as Request
-      if (!request) {
-        throw new Error('No request object available')
-      }
-      
-      // Clone the request to avoid "body already read" error
-      const clonedRequest = request.clone()
-      const bodyText = await clonedRequest.text()
-      console.log('Request body text:', bodyText?.slice(0, 200))
-      
-      // Parse the JSON body
+      // Try the request.json() method (different from .text())
+      const request = ctx.request
       let data: ChatRequest
+      
       try {
-        data = JSON.parse(bodyText) as ChatRequest
-        console.log('Parsed data:', { messageCount: data.messages?.length, temperature: data.temperature })
-      } catch (parseError) {
-        console.error('JSON parse failed:', parseError)
-        throw new Error('Invalid JSON in request body')
+        // Use json() method instead of text() + JSON.parse
+        data = await request.json() as ChatRequest
+        console.log('Parsed from request.json():', { messageCount: data?.messages?.length })
+      } catch (jsonError) {
+        console.error('request.json() failed:', jsonError)
+        throw new Error('Could not parse request body as JSON')
       }
       
       const { messages, temperature, maxTokens, topP } = data
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        console.error('Invalid or empty messages array after parse:', { messages, bodyTextLength: bodyText?.length })
+        console.error('Invalid or empty messages array:', { messages, dataKeys: Object.keys(data || {}) })
         return {
           choices: [
             {

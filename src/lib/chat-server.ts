@@ -15,46 +15,27 @@ export interface ChatRequest {
  */
 export const sendChatMessage = createServerFn({
   method: 'POST',
-}).handler(async function(ctx: any) {
+}).handler(async function({ request }: any) {
     try {
-      console.log('=== FULL CTX DUMP ===')
-      console.log('ctx keys:', Object.keys(ctx || {}))
-      console.log('ctx.context:', JSON.stringify(ctx.context)?.slice(0, 300))
-      console.log('ctx.sendContext:', JSON.stringify(ctx.sendContext)?.slice(0, 300))
-      console.log('ctx.headers:', JSON.stringify(ctx.headers)?.slice(0, 300))
+      // Read the request body directly
+      console.log('=== HANDLER CALLED ===')
+      console.log('Request method:', request.method)
+      console.log('Request URL:', request.url)
       
-      // Check if data was already parsed and stored somewhere
-      let data: ChatRequest | null = null
-      
-      // Try every possible location
-      if (ctx.data) {
-        console.log('Found data in ctx.data')
-        data = ctx.data
-      } else if (ctx.body) {
-        console.log('Found data in ctx.body')
-        data = ctx.body
-      } else if (ctx.payload) {
-        console.log('Found data in ctx.payload')
-        data = ctx.payload
-      } else if (ctx.input) {
-        console.log('Found data in ctx.input')
-        data = ctx.input
-      } else if (ctx.context?.data) {
-        console.log('Found data in ctx.context.data')
-        data = ctx.context.data
-      } else if (ctx.sendContext?.data) {
-        console.log('Found data in ctx.sendContext.data')
-        data = ctx.sendContext.data
-      } else {
-        console.log('Data not found in any expected location - dumping full ctx')
-        console.log(JSON.stringify(ctx, null, 2)?.slice(0, 1000))
-        throw new Error('Cannot find request data in context')
-      }
-      
-      console.log('Using data from:', { hasMessages: !!data?.messages, messageCount: data?.messages?.length })
-      
-      if (!data) {
-        throw new Error('Data is null after checking all locations')
+      // Parse JSON from request body
+      let data: ChatRequest
+      try {
+        const bodyText = await request.text()
+        console.log('Raw body text:', bodyText?.slice(0, 200))
+        data = JSON.parse(bodyText)
+        console.log('Parsed data:', {
+          hasMessages: !!data?.messages,
+          messageCount: data?.messages?.length,
+          dataKeys: Object.keys(data || {})
+        })
+      } catch (parseError) {
+        console.error('Failed to parse request body:', parseError)
+        throw new Error('Invalid JSON in request body')
       }
       
       const { messages, temperature, maxTokens, topP } = data

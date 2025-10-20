@@ -15,28 +15,26 @@ export interface ChatRequest {
  */
 export const sendChatMessage = createServerFn({
   method: 'POST',
-}).handler(async function({ request }: any) {
+})
+  .inputValidator((data: ChatRequest) => {
+    // This receives the raw parsed JSON from the POST body
+    console.log('=== INPUT VALIDATOR ===')
+    console.log('Received data:', {
+      hasData: !!data,
+      hasMessages: !!data?.messages,
+      messageCount: data?.messages?.length,
+      dataKeys: Object.keys(data || {})
+    })
+    return data
+  })
+  .handler(async function({ data }) {
     try {
-      // Read the request body directly
       console.log('=== HANDLER CALLED ===')
-      console.log('Request method:', request.method)
-      console.log('Request URL:', request.url)
-      
-      // Parse JSON from request body
-      let data: ChatRequest
-      try {
-        const bodyText = await request.text()
-        console.log('Raw body text:', bodyText?.slice(0, 200))
-        data = JSON.parse(bodyText)
-        console.log('Parsed data:', {
-          hasMessages: !!data?.messages,
-          messageCount: data?.messages?.length,
-          dataKeys: Object.keys(data || {})
-        })
-      } catch (parseError) {
-        console.error('Failed to parse request body:', parseError)
-        throw new Error('Invalid JSON in request body')
-      }
+      console.log('Handler received data:', {
+        hasData: !!data,
+        hasMessages: !!data?.messages,
+        messageCount: data?.messages?.length
+      })
       
       const { messages, temperature, maxTokens, topP } = data
 

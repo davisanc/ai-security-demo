@@ -13,31 +13,40 @@ export interface ChatRequest {
  * Server function to handle chat completion requests
  * This runs on the server side, keeping API keys secure
  */
-export const sendChatMessage = createServerFn({ method: 'POST' }).handler(async (ctx) => {
+export const sendChatMessage = createServerFn({ method: 'POST' }).handler(async (ctx: any, ...args: any[]) => {
     try {
-      // Read the request body from ctx.request
-      const request = (ctx as any).request as Request
-      if (!request) {
-        console.error('No request object in context')
-        throw new Error('Invalid server function call - no request')
-      }
-
-      // Parse JSON body
+      // TanStack Start pre-parses the body and passes it as the second argument
+      console.log('Handler called - ctx type:', typeof ctx)
+      console.log('Handler called - args:', args)
+      console.log('Handler called - ctx keys:', Object.keys(ctx || {}))
+      
+      // The data is passed as the first positional argument after ctx
       let data: ChatRequest
-      try {
-        const bodyText = await request.text()
-        console.log('Request body text:', bodyText)
-        data = JSON.parse(bodyText) as ChatRequest
-        console.log('Parsed chat request:', { messageCount: data.messages?.length, temperature: data.temperature })
-      } catch (parseError) {
-        console.error('Failed to parse request body:', parseError)
-        throw new Error('Invalid JSON in request body')
+      if (args.length > 0 && args[0]) {
+        data = args[0] as ChatRequest
+        console.log('Using args[0]:', { messageCount: data.messages?.length })
+      } else {
+        console.log('No args, checking ctx properties')
+        // Try various possible locations
+        const ctxAny = ctx as any
+        if (ctxAny.data) {
+          data = ctxAny.data
+        } else if (ctxAny.body) {
+          data = ctxAny.body
+        } else if (ctxAny.payload) {
+          data = ctxAny.payload
+        } else {
+          // Last resort: ctx itself might be the data
+          data = ctxAny
+        }
       }
+      
+      console.log('Final data:', { hasMessages: !!data?.messages, messageCount: data?.messages?.length })
       
       const { messages, temperature, maxTokens, topP } = data
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        console.error('Invalid or empty messages array:', { messages, hasData: !!data })
+        console.error('Invalid or empty messages array:', { messages, hasData: !!data, dataKeys: Object.keys(data || {}) })
         return {
           choices: [
             {

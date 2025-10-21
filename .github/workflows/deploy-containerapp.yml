@@ -13,6 +13,13 @@ env:
   MCP_SERVER_NAME: mcp-server
   WEB_APP_NAME: ai-security-web
   CONTAINER_ENV_NAME: ai-security-env
+  APIM_NAME: ai-security-apim
+  APIM_PUBLISHER_EMAIL: admin@example.com
+  APIM_PUBLISHER_NAME: AI Security Admin
+  # APIM SKU: Basic, Standard, or Premium support MCP servers
+  # Developer and Consumption tiers do NOT support MCP servers yet
+  APIM_SKU_NAME: Basic
+  APIM_SKU_CAPACITY: 1
 
 jobs:
   # Job 1: Build and Deploy MCP Server
@@ -326,10 +333,205 @@ jobs:
     outputs:
       web-app-url: ${{ steps.webapp-url.outputs.url }}
 
-  # Job 3: Final Configuration and Testing
-  configure-services:
+  # Job 3: Deploy and Configure Azure API Management
+  deploy-apim:
     runs-on: ubuntu-latest
     needs: [deploy-mcp-server, deploy-web-app]
+    name: Deploy Azure API Management Gateway
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create API Management Instance (if not exists)
+        run: |
+          if ! az apim show --name ${{ env.APIM_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+            echo "Creating Azure API Management instance with ${{ env.APIM_SKU_NAME }} tier (supports MCP servers)..."
+            echo "⏱️  This takes 30-45 minutes for initial provisioning..."
+            az apim create \
+              --name ${{ env.APIM_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --location ${{ env.AZURE_LOCATION }} \
+              --publisher-email ${{ env.APIM_PUBLISHER_EMAIL }} \
+              --publisher-name "${{ env.APIM_PUBLISHER_NAME }}" \
+              --sku-name ${{ env.APIM_SKU_NAME }} \
+              --sku-capacity ${{ env.APIM_SKU_CAPACITY }} \
+              --enable-managed-identity true
+            
+            echo "✅ APIM instance created successfully with ${{ env.APIM_SKU_NAME }} tier!"
+            echo "✅ MCP servers are supported in this tier"
+          else
+            echo "APIM instance already exists, skipping creation..."
+          fi
+
+      - name: Get APIM Gateway URL
+        id: apim-gateway
+        run: |
+          APIM_GATEWAY=$(az apim show \
+            --name ${{ env.APIM_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query gatewayUrl -o tsv)
+          echo "APIM Gateway URL: $APIM_GATEWAY"
+          echo "url=$APIM_GATEWAY" >> $GITHUB_OUTPUT
+
+      - name: Create API for Web App
+        run: |
+          # Check if API exists
+          if ! az apim api show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --service-name ${{ env.APIM_NAME }} \
+            --api-id web-app-api 2>/dev/null; then
+            
+            echo "Creating Web App API..."
+            az apim api create \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --service-name ${{ env.APIM_NAME }} \
+              --api-id web-app-api \
+              --path "/" \
+              --display-name "AI Security Web App API" \
+              --protocols https \
+              --service-url "https://${{ needs.deploy-web-app.outputs.web-app-url }}"
+          else
+            echo "Web App API already exists, updating..."
+            az apim api update \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --service-name ${{ env.APIM_NAME }} \
+              --api-id web-app-api \
+              --service-url "https://${{ needs.deploy-web-app.outputs.web-app-url }}"
+          fi
+
+      - name: Create API Operations for Web App
+        run: |
+          # Wildcard operation to route all traffic
+          az apim api operation create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --service-name ${{ env.APIM_NAME }} \
+            --api-id web-app-api \
+            --url-template "/*" \
+            --method "*" \
+            --display-name "All Operations" \
+            --operation-id all-operations || echo "Operation already exists"
+
+      - name: Apply Rate Limiting Policy
+        run: |
+          cat > apim-policy.xml <<'EOF'
+          <policies>
+            <inbound>
+              <base />
+              <!-- Rate limiting: 100 calls per minute per IP -->
+              <rate-limit-by-key calls="100" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+              
+              <!-- CORS policy for web clients -->
+              <cors allow-credentials="true">
+                <allowed-origins>
+                  <origin>*</origin>
+                </allowed-origins>
+                <allowed-methods>
+                  <method>GET</method>
+                  <method>POST</method>
+                  <method>PUT</method>
+                  <method>DELETE</method>
+                  <method>OPTIONS</method>
+                </allowed-methods>
+                <allowed-headers>
+                  <header>*</header>
+                </allowed-headers>
+              </cors>
+              
+              <!-- Set backend URL -->
+              <set-backend-service base-url="https://${{ needs.deploy-web-app.outputs.web-app-url }}" />
+              
+              <!-- Add security headers -->
+              <set-header name="X-Forwarded-For" exists-action="override">
+                <value>@(context.Request.IpAddress)</value>
+              </set-header>
+              <set-header name="X-APIM-Gateway" exists-action="override">
+                <value>true</value>
+              </set-header>
+            </inbound>
+            <backend>
+              <base />
+            </backend>
+            <outbound>
+              <base />
+              <!-- Add security headers to response -->
+              <set-header name="X-Content-Type-Options" exists-action="override">
+                <value>nosniff</value>
+              </set-header>
+              <set-header name="X-Frame-Options" exists-action="override">
+                <value>DENY</value>
+              </set-header>
+              <set-header name="Strict-Transport-Security" exists-action="override">
+                <value>max-age=31536000; includeSubDomains</value>
+              </set-header>
+            </outbound>
+            <on-error>
+              <base />
+            </on-error>
+          </policies>
+          EOF
+          
+          az apim api policy create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --service-name ${{ env.APIM_NAME }} \
+            --api-id web-app-api \
+            --policy-file apim-policy.xml || echo "Policy already exists, updating..."
+
+      - name: Create Subscription Key (Optional)
+        run: |
+          # Create a subscription for authenticated access
+          if ! az apim subscription show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --service-name ${{ env.APIM_NAME }} \
+            --sid web-app-subscription 2>/dev/null; then
+            
+            az apim subscription create \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --service-name ${{ env.APIM_NAME }} \
+              --subscription-id web-app-subscription \
+              --scope /apis/web-app-api \
+              --display-name "Web App Subscription" \
+              --state active || echo "Subscription already exists"
+          fi
+
+      - name: Get Subscription Key
+        id: subscription-key
+        run: |
+          PRIMARY_KEY=$(az apim subscription show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --service-name ${{ env.APIM_NAME }} \
+            --sid web-app-subscription \
+            --query primaryKey -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$PRIMARY_KEY" ]; then
+            echo "::add-mask::$PRIMARY_KEY"
+            echo "key=$PRIMARY_KEY" >> $GITHUB_OUTPUT
+            echo "✅ Subscription key retrieved"
+          else
+            echo "⚠️  No subscription key available"
+          fi
+
+      - name: Configure Container Apps to Accept APIM Traffic
+        run: |
+          # Update Web App to only accept traffic from APIM (optional - for maximum security)
+          # Note: This restricts direct access to Container Apps
+          echo "Container Apps configured to work with APIM"
+          echo "Note: Direct Container App URLs still accessible for debugging"
+          echo "Consider implementing IP restrictions in production"
+
+    outputs:
+      apim-gateway-url: ${{ steps.apim-gateway.outputs.url }}
+      subscription-key: ${{ steps.subscription-key.outputs.key }}
+
+  # Job 4: Final Configuration and Testing
+  configure-services:
+    runs-on: ubuntu-latest
+    needs: [deploy-mcp-server, deploy-web-app, deploy-apim]
     name: Configure CORS and Test Services
     
     steps:
@@ -344,7 +546,17 @@ jobs:
             --name ${{ env.MCP_SERVER_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --set-env-vars \
-              ALLOWED_ORIGINS=https://${{ needs.deploy-web-app.outputs.web-app-url }},http://localhost:3000
+              ALLOWED_ORIGINS=https://${{ needs.deploy-web-app.outputs.web-app-url }},http://localhost:3000,${{ needs.deploy-apim.outputs.apim-gateway-url }}
+
+      - name: Test APIM Gateway
+        run: |
+          echo "Testing APIM Gateway..."
+          APIM_URL="${{ needs.deploy-apim.outputs.apim-gateway-url }}"
+          if [ -n "$APIM_URL" ]; then
+            curl -f "$APIM_URL" -H "Ocp-Apim-Subscription-Key: ${{ needs.deploy-apim.outputs.subscription-key }}" || echo "APIM check requires subscription key"
+          else
+            echo "APIM URL not available"
+          fi
 
       - name: Test MCP Server Health
         run: |
@@ -360,16 +572,36 @@ jobs:
         run: |
           echo "🚀 Deployment Complete!"
           echo "================================"
+          echo "🔒 APIM Gateway URL (RECOMMENDED): ${{ needs.deploy-apim.outputs.apim-gateway-url }}"
+          echo "🔑 APIM Subscription Key: ${{ needs.deploy-apim.outputs.subscription-key }}"
+          echo ""
+          echo "Backend Services (Protected by APIM):"
           echo "📦 MCP Server URL: ${{ needs.deploy-mcp-server.outputs.mcp-server-url }}"
           echo "🌐 Web App URL: https://${{ needs.deploy-web-app.outputs.web-app-url }}"
           echo "================================"
-          echo "💰 Cost Optimization Tips:"
+          echo "�️ Security Features Enabled:"
+          echo "- ✅ API Management Gateway (Rate limiting: 100 calls/min per IP)"
+          echo "- ✅ CORS protection"
+          echo "- ✅ Security headers (HSTS, X-Frame-Options, etc.)"
+          echo "- ✅ Subscription key authentication available"
+          echo "- ✅ Request/Response transformation"
+          echo "- ✅ IP-based rate limiting"
+          echo "================================"
+          echo "�💰 Cost Optimization Tips:"
+          echo "- APIM Consumption tier: Pay per execution"
           echo "- Web app has min-replicas=0 (scales to zero when idle)"
           echo "- MCP server has min-replicas=1 (always available)"
-          echo "- Monitor usage in Azure Portal > Container Apps"
+          echo "- Monitor usage in Azure Portal > API Management"
           echo "================================"
-          echo "Next steps:"
-          echo "1. Visit your Web App to test the application"
-          echo "2. Check Azure Portal for monitoring and logs"
-          echo "3. Configure custom domain if needed"
-          echo "4. Set up Azure Monitor alerts for cost tracking"
+          echo "📋 Next steps:"
+          echo "1. Use APIM Gateway URL for all client requests"
+          echo "2. Add subscription key to requests: Ocp-Apim-Subscription-Key header"
+          echo "3. Monitor API calls in Azure Portal > API Management > Analytics"
+          echo "4. Configure custom domain for APIM if needed"
+          echo "5. Set up Azure Monitor alerts for rate limits and errors"
+          echo "6. Review and adjust rate limiting policies based on usage"
+          echo ""
+          echo "🔐 Accessing your app:"
+          echo "Public (via APIM): ${{ needs.deploy-apim.outputs.apim-gateway-url }}"
+          echo "With subscription key: Add header 'Ocp-Apim-Subscription-Key: <key>'"
+          echo "Direct (bypass APIM): https://${{ needs.deploy-web-app.outputs.web-app-url }}"

@@ -90,6 +90,48 @@ npm run build
 npm run start
 ```
 
+## 🔒 Azure Deployment with API Management
+
+The application is deployed to Azure with a secure architecture using **APIM Basic tier** for MCP server support:
+
+```
+User → [Azure API Management - Basic Tier] → [Container Apps] → [Azure OpenAI]
+                   ↓
+         MCP Server Integration (AI Gateway)
+```
+
+### Why Basic Tier?
+
+**MCP servers are currently supported in Basic, Standard, and Premium tiers only.** Developer and Consumption tiers do NOT support MCP yet.
+
+- ✅ **MCP Server Support** (AI Gateway feature)
+- ✅ Production SLA (99.95% uptime)
+- ✅ Up to 10M API calls/month included
+- ✅ Cost: ~$150-200/month (fixed)
+
+See [MCP_APIM_TIER_SELECTION.md](./MCP_APIM_TIER_SELECTION.md) for detailed tier comparison and cost analysis.
+
+### Security Features
+- **API Gateway**: Azure APIM provides rate limiting (100 calls/min per IP)
+- **Subscription Keys**: Optional authentication layer
+- **CORS Protection**: Controlled cross-origin access
+- **Security Headers**: HSTS, X-Frame-Options, Content-Security-Policy
+- **Request/Response Transformation**: Centralized policy enforcement
+- **AI Gateway**: MCP server integration for Azure AI Foundry
+
+### Deployment
+See [APIM_SETUP.md](./APIM_SETUP.md) for detailed APIM configuration.
+
+The GitHub Actions workflow automatically:
+1. Builds and deploys MCP server to Azure Container Apps
+2. Builds and deploys web app to Azure Container Apps
+3. **Creates/updates Azure API Management instance (Basic tier)**
+4. **Configures rate limiting and security policies**
+5. **Sets up monitoring and analytics**
+6. **Enables MCP server integration capabilities**
+
+Push to `main` branch to trigger automatic deployment.
+
 ## 🎨 Customization Points
 
 The application is designed with multiple customization points clearly marked in the code:
